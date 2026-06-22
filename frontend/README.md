@@ -1,16 +1,36 @@
-# React + Vite
+# G4 Delivery Admin — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React-based admin dashboard for managing deliveries, customers, riders, stores, and analytics.
 
-Currently, two official plugins are available:
+## Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm run dev      # Start dev server (port 5173)
+npm run build    # Build for production
+npm run lint     # Run ESLint
+npm run preview  # Preview production build
+```
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Dashboard** — Real-time stats, daily orders, revenue, delivery trends, peak hours, top performers
+- **Customers** — CRUD, search, filter, status toggle
+- **Riders** — CRUD, search, filter, status toggle, GPS tracking
+- **Deliveries** — List, search, filter, assign riders, status updates
+- **Stores** — Card grid, detail view with products & categories
+- **Live Tracking** — Real-time rider positions on Leaflet map (polls every 10s)
+- **Reports** — Delivery trends, peak hours analysis, orders by category, rider performance
+- **Pricing** — Configure base fee, per-km rate, surcharges
+- **Settings** — App name, support info, notification toggles, language
 
-## Expanding the ESLint configuration
+## Tech
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+React 19, Vite 8, Tailwind CSS 4, React Router 7, Leaflet, Axios, Lucide Icons
+
+## API
+
+All data is fetched from the backend at `http://localhost:5000/api`. The Axios client automatically attaches the JWT token from localStorage.
+
+## Auth
+
+Login is required. Unauthenticated users are redirected to `/login`. Token is stored in localStorage and cleared on logout.
