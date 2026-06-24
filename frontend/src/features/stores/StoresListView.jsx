@@ -1,5 +1,6 @@
 import { Edit, Eye, MapPin, Package, Phone, Plus, Search, Star, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import PageHeader from '../../components/shared/PageHeader'
 import { LoadingCards } from '../../components/shared/LoadingRows'
 import AddStoreModal from './AddStoreModal'
@@ -15,6 +16,7 @@ const typeBadgeColors = {
 }
 
 export default function StoresListView({ onOpenStore }) {
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('All')
   const [showAdd, setShowAdd] = useState(false)
@@ -29,12 +31,12 @@ export default function StoresListView({ onOpenStore }) {
         <AddStoreModal onClose={() => setShowAdd(false)} onSaved={refetch} />
       )}
       <PageHeader
-        title="Store Management"
-        subtitle="Manage stores, categories, and products"
+        title={t('stores.storeManagement')}
+        subtitle={t('stores.storeManagementSub')}
         action={
           <button onClick={() => setShowAdd(true)}
             className="flex items-center gap-2 rounded-xl bg-[#F25C22] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-orange-600 transition-colors">
-            <Plus size={16} /> Add Store
+            <Plus size={16} /> {t('stores.addStore')}
           </button>
         }
       />
@@ -44,7 +46,7 @@ export default function StoresListView({ onOpenStore }) {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A3AED0]" />
           <input
             type="text"
-            placeholder="Search stores..."
+            placeholder={t('stores.search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-xl border border-[#E0E5F2] bg-white py-2.5 pl-9 pr-4 text-sm text-[#1B2559] outline-none focus:border-[#F25C22] placeholder:text-[#A3AED0]"
@@ -82,20 +84,20 @@ export default function StoresListView({ onOpenStore }) {
                   <div className="mt-3 space-y-1.5 text-xs text-[#64748b]">
                     <p className="flex items-center gap-1.5"><MapPin size={12} className="text-[#F25C22]" />{store.location}</p>
                     <p className="flex items-center gap-1.5"><Phone size={12} className="text-[#F25C22]" />{store.phone}</p>
-                    <p className="flex items-center gap-1.5"><Package size={12} className="text-[#F25C22]" />{store.product_count} products</p>
+                    <p className="flex items-center gap-1.5"><Package size={12} className="text-[#F25C22]" />{store.product_count} {t('stores.productsCount')}</p>
                   </div>
                   <div className="mt-3 flex items-center justify-between">
                     <div className="flex items-center gap-1 text-sm font-bold text-[#1B2559]">
                       <Star size={14} className="fill-[#FFB800] text-[#FFB800]" />
                       {store.rating}
                     </div>
-                    <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-600">Active</span>
+                    <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-600">{t('stores.active')}</span>
                   </div>
                   <button
                     onClick={() => onOpenStore(toStoreSlug(store.name), store.id)}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#F25C22] py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors"
                   >
-                    <Eye size={15} /> View Products
+                    <Eye size={15} /> {t('stores.viewProducts')}
                   </button>
                 </div>
               </article>

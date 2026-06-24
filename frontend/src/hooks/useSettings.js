@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../api/client'
 
 export default function useSettings() {
@@ -7,6 +7,7 @@ export default function useSettings() {
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState(null)
   const [saved, setSaved]     = useState(false)
+  const timerRef              = useRef(null)
 
   useEffect(() => {
     api.get('/settings')
@@ -15,7 +16,15 @@ export default function useSettings() {
       .finally(() => setLoading(false))
   }, [])
 
-  const save = async ({ general, notifications, language }) => {
+  // Auto-hide success banner after 3s
+  useEffect(() => {
+    if (saved) {
+      timerRef.current = setTimeout(() => setSaved(false), 3000)
+      return () => clearTimeout(timerRef.current)
+    }
+  }, [saved])
+
+  const save = useCallback(async ({ general, notifications, language }) => {
     setSaving(true)
     setError(null)
     setSaved(false)
@@ -38,7 +47,7 @@ export default function useSettings() {
     } finally {
       setSaving(false)
     }
-  }
+  }, [])
 
   return { data, loading, saving, error, saved, save }
 }

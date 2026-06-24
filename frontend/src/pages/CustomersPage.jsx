@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import PageHeader from '../components/shared/PageHeader'
 import CustomersTable from '../features/customers/CustomersTable'
 import CustomersToolbar from '../features/customers/CustomersToolbar'
@@ -7,6 +8,7 @@ import AddCustomerModal from '../features/customers/AddCustomerModal'
 import useCustomers from '../hooks/useCustomers'
 
 export default function CustomersPage() {
+  const { t } = useTranslation()
   const [search, setSearch]   = useState('')
   const [status, setStatus]   = useState('')
   const [showAdd, setShowAdd] = useState(false)
@@ -19,11 +21,11 @@ export default function CustomersPage() {
         <AddCustomerModal onClose={() => setShowAdd(false)} onSaved={refetch} />
       )}
       <PageHeader
-        title="Customer Management"
+        title={t('customers.management')}
         action={
           <button onClick={() => setShowAdd(true)}
             className="flex items-center gap-2 rounded-xl bg-[#F25C22] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-orange-600 transition-colors">
-            <Plus size={16} /> Add Customer
+            <Plus size={16} /> {t('customers.addCustomer')}
           </button>
         }
       />

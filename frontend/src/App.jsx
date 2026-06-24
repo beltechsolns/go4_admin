@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Sidebar from './components/layout/Sidebar'
 import { ROUTES } from './constants/routes'
@@ -20,20 +19,7 @@ function ProtectedRoute({ children }) {
 }
 
 export default function App() {
-  const location = useLocation()
-  const [userMenuOpen, setUserMenuOpen] = useState(false)
-
-  useEffect(() => {
-    const inUserArea =
-      location.pathname.startsWith(ROUTES.customers) ||
-      location.pathname.startsWith(ROUTES.riders)
-
-    if (inUserArea) {
-      setUserMenuOpen(true)
-    }
-  }, [location.pathname])
-
-  const isLoginPage = location.pathname === ROUTES.login
+  const isLoginPage = useLocation().pathname === ROUTES.login
   const token = localStorage.getItem('token')
 
   if (isLoginPage && token) {
@@ -50,10 +36,7 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen bg-[#F4F7FE] font-sans text-[#1B2559] antialiased selection:bg-[#F25C22] selection:text-white">
-      <Sidebar
-        userMenuOpen={userMenuOpen}
-        onToggleUserMenu={() => setUserMenuOpen((value) => !value)}
-      />
+      <Sidebar />
 
       <main className="mx-auto w-full max-w-400 flex-1 overflow-y-auto p-4 pt-20 md:p-8">
         <Routes>

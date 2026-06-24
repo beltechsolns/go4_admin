@@ -1,8 +1,11 @@
 import { Eye, MapPin } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import StatusBadge from '../../components/shared/StatusBadge'
 import { LoadingRows, EmptyState } from '../../components/shared/LoadingRows'
 
 export default function DeliveriesTable({ data = [], loading, error, onAssignRider }) {
+  const { t } = useTranslation()
+
   return (
     <div className="overflow-x-auto">
       {error && (
@@ -11,20 +14,20 @@ export default function DeliveriesTable({ data = [], loading, error, onAssignRid
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="bg-[#F8F9FC] text-xs font-bold uppercase text-[#A3AED0]">
-            <th className="rounded-l-xl p-4">Order ID</th>
-            <th className="p-4">Customer</th>
-            <th className="p-4">Rider</th>
-            <th className="p-4">Location</th>
-            <th className="p-4">Amount</th>
-            <th className="p-4">Status</th>
-            <th className="rounded-r-xl p-4 text-center">Actions</th>
+            <th className="rounded-l-xl p-4">{t('deliveries.orderId')}</th>
+            <th className="p-4">{t('deliveries.customer')}</th>
+            <th className="p-4">{t('deliveries.rider')}</th>
+            <th className="p-4">{t('deliveries.location')}</th>
+            <th className="p-4">{t('deliveries.amount')}</th>
+            <th className="p-4">{t('deliveries.status')}</th>
+            <th className="rounded-r-xl p-4 text-center">{t('deliveries.actions')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[#F4F7FE]">
           {loading
             ? <LoadingRows cols={7} rows={5} />
             : data.length === 0
-              ? <EmptyState message="No deliveries found" />
+              ? <EmptyState message={t('deliveries.noDeliveries')} />
               : data.map((d) => (
                   <tr key={d.id} className="font-medium text-[#1B2559] hover:bg-[#F8F9FC]/60">
                     <td className="p-4 font-bold">{d.order_number}</td>
@@ -34,12 +37,12 @@ export default function DeliveriesTable({ data = [], loading, error, onAssignRid
                         ? (
                           <button
                             onClick={() => {
-                              const rid = prompt('Enter rider ID to assign:')
+                              const rid = prompt(t('deliveries.assignRiderPrompt'))
                               if (rid) onAssignRider(d.id, parseInt(rid))
                             }}
                             className="rounded-lg border border-dashed border-[#F25C22] bg-[#FFF3EE] px-2.5 py-1 text-xs font-bold text-[#F25C22] transition-colors hover:bg-[#F25C22] hover:text-white"
                           >
-                            Assign Rider
+                            {t('deliveries.assignRider')}
                           </button>
                         )
                         : <span className="text-[#A3AED0]">{d.rider_name}</span>

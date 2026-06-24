@@ -1,4 +1,5 @@
 import { DollarSign, Percent } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 function FieldInput({ label, description, unit, value, onChange }) {
   return (
@@ -19,65 +20,65 @@ function FieldInput({ label, description, unit, value, onChange }) {
 }
 
 export default function DeliveryFeesSection({ values, onChange }) {
+  const { t } = useTranslation()
+
   return (
     <div className="space-y-5">
-      {/* Delivery Fees */}
       <section className="rounded-2xl border border-[#E0E5F2] bg-white p-6 shadow-sm space-y-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF3E8]">
             <DollarSign size={18} className="text-[#F25C22]" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-[#1B2559]">Delivery Fees</h3>
-            <p className="text-xs text-[#A3AED0]">Set base delivery fees and distance charges</p>
+            <h3 className="text-sm font-bold text-[#1B2559]">{t('pricing.deliveryFees')}</h3>
+            <p className="text-xs text-[#A3AED0]">{t('pricing.deliveryFeesDesc')}</p>
           </div>
         </div>
 
         <FieldInput
-          label="Base Delivery Fee"
-          description="The minimum charge for any delivery in Shakiso"
+          label={t('pricing.baseDeliveryFee')}
+          description={t('pricing.baseDeliveryFeeDesc')}
           unit="ETB"
           value={values.base}
           onChange={(v) => onChange('base', v)}
         />
         <FieldInput
-          label="Per Kilometer Fee"
-          description="Additional charge for each kilometer traveled"
+          label={t('pricing.perKmFee')}
+          description={t('pricing.perKmFeeDesc')}
           unit="ETB/km"
           value={values.perKm}
           onChange={(v) => onChange('perKm', v)}
         />
         <FieldInput
-          label="Service Charge"
-          description="Percentage of order value charged as service fee"
+          label={t('pricing.serviceCharge')}
+          description={t('pricing.serviceChargeDesc')}
           unit="%"
           value={values.service}
           onChange={(v) => onChange('service', v)}
         />
       </section>
 
-      {/* Additional Settings */}
       <section className="rounded-2xl border border-[#E0E5F2] bg-white p-6 shadow-sm space-y-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF3E8]">
             <Percent size={18} className="text-[#F25C22]" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-[#1B2559]">Additional Settings</h3>
-            <p className="text-xs text-[#A3AED0]">Minimum orders and peak hour charges</p>
+            <h3 className="text-sm font-bold text-[#1B2559]">{t('pricing.additionalSettings')}</h3>
+            <p className="text-xs text-[#A3AED0]">{t('pricing.additionalSettingsDesc')}</p>
           </div>
         </div>
 
         <FieldInput
-          label="Minimum Order Value"
-          description="Minimum order amount required for delivery"
+          label={t('pricing.minOrderValue')}
+          description={t('pricing.minOrderValueDesc')}
           unit="ETB"
           value={values.minOrder}
           onChange={(v) => onChange('minOrder', v)}
         />
         <FieldInput
-          label="Peak Hour Surcharge"
-          description="Additional fee during peak hours (12–2 PM, 6–9 PM)"
+          label={t('pricing.peakHourSurcharge')}
+          description={t('pricing.peakHourSurchargeDesc')}
           unit="ETB"
           value={values.peakSurcharge}
           onChange={(v) => onChange('peakSurcharge', v)}

@@ -13,30 +13,38 @@ import {
   X,
 } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes'
 import brandLogo from '../../assets/brand.png'
 
-const navItems = [
-  { to: ROUTES.deliveries, text: 'Deliveries', icon: Truck },
-  { to: ROUTES.stores, text: 'Stores & Products', icon: Store },
-  { to: ROUTES.liveTracking, text: 'Live Tracking', icon: MapPin },
-  { to: ROUTES.reports, text: 'Reports & Analytics', icon: BarChart3 },
-  { to: ROUTES.pricing, text: 'Pricing', icon: DollarSign },
-  { to: ROUTES.settings, text: 'Settings', icon: Settings },
-]
-
-function NavContent({ userMenuOpen, onToggleUserMenu, onClose }) {
+function NavContent({ onToggleUserMenu, onClose }) {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const isUserManagementActive =
     location.pathname.startsWith(ROUTES.customers) ||
     location.pathname.startsWith(ROUTES.riders)
+  const [userMenuOpen, setUserMenuOpen] = useState(isUserManagementActive)
+
+  const handleToggle = () => {
+    setUserMenuOpen((p) => !p)
+    onToggleUserMenu?.()
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('token')
     navigate(ROUTES.login, { replace: true })
   }
+
+  const navItems = [
+    { to: ROUTES.deliveries, text: t('sidebar.deliveries'), icon: Truck },
+    { to: ROUTES.stores, text: t('sidebar.storesAndProducts'), icon: Store },
+    { to: ROUTES.liveTracking, text: t('sidebar.liveTracking'), icon: MapPin },
+    { to: ROUTES.reports, text: t('sidebar.reportsAndAnalytics'), icon: BarChart3 },
+    { to: ROUTES.pricing, text: t('sidebar.pricing'), icon: DollarSign },
+    { to: ROUTES.settings, text: t('sidebar.settings'), icon: Settings },
+  ]
 
   return (
     <div className="flex h-full flex-col">
@@ -67,13 +75,13 @@ function NavContent({ userMenuOpen, onToggleUserMenu, onClose }) {
           }
         >
           <LayoutDashboard size={18} />
-          <span>Dashboard</span>
+          <span>{t('sidebar.dashboard')}</span>
         </NavLink>
 
         {/* User Management */}
         <div>
           <button
-            onClick={onToggleUserMenu}
+            onClick={handleToggle}
             className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-all ${
               userMenuOpen || isUserManagementActive
                 ? 'bg-[#F25C22] text-white shadow-md'
@@ -82,7 +90,7 @@ function NavContent({ userMenuOpen, onToggleUserMenu, onClose }) {
           >
             <div className="flex items-center gap-3">
               <Users size={18} />
-              <span>User Management</span>
+              <span>{t('sidebar.userManagement')}</span>
             </div>
             <ChevronDown
               size={15}
@@ -101,7 +109,7 @@ function NavContent({ userMenuOpen, onToggleUserMenu, onClose }) {
                   }`
                 }
               >
-                Customers
+                {t('sidebar.customers')}
               </NavLink>
               <NavLink
                 to={ROUTES.riders}
@@ -112,7 +120,7 @@ function NavContent({ userMenuOpen, onToggleUserMenu, onClose }) {
                   }`
                 }
               >
-                Riders
+                {t('sidebar.riders')}
               </NavLink>
             </div>
           )}
@@ -145,7 +153,7 @@ function NavContent({ userMenuOpen, onToggleUserMenu, onClose }) {
           className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-[#64748b] transition-all hover:bg-red-50 hover:text-red-500"
         >
           <LogOut size={18} />
-          <span>Logout</span>
+          <span>{t('auth.logout')}</span>
         </button>
       </div>
     </div>
@@ -186,8 +194,7 @@ export default function Sidebar({ userMenuOpen, onToggleUserMenu }) {
         }`}
       >
         <NavContent
-          userMenuOpen={userMenuOpen}
-          onToggleUserMenu={onToggleUserMenu}
+          onToggleUserMenu={() => {}}
           onClose={() => setMobileOpen(false)}
         />
       </div>
@@ -195,8 +202,7 @@ export default function Sidebar({ userMenuOpen, onToggleUserMenu }) {
       {/* Desktop sidebar — always visible */}
       <aside className="hidden w-64 shrink-0 border-r border-[#EEF1F7] bg-white md:flex md:flex-col">
         <NavContent
-          userMenuOpen={userMenuOpen}
-          onToggleUserMenu={onToggleUserMenu}
+          onToggleUserMenu={() => {}}
           onClose={null}
         />
       </aside>

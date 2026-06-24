@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import Card from '../../components/shared/Card'
 import { useDashboardChart } from '../../hooks/useDashboard'
 
@@ -98,14 +99,15 @@ function LineChart({ data, loading }) {
 }
 
 export default function ChartsPanel() {
+  const { t } = useTranslation()
   const { data, loading } = useDashboardChart()
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-      <Card title="Daily Orders">
+      <Card title={t('dashboard.dailyOrders')}>
         <BarChart data={data?.daily} loading={loading} />
       </Card>
-      <Card title="Monthly Revenue (ETB)">
+      <Card title={t('dashboard.monthlyRevenue')}>
         <LineChart data={data?.monthly} loading={loading} />
       </Card>
     </div>

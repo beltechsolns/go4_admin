@@ -1,9 +1,9 @@
 import L from 'leaflet'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { useTranslation } from 'react-i18next'
 import useTracking from '../../hooks/useTracking'
 
-// Fix default marker icons broken by Vite bundling
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -11,7 +11,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
-// Custom icon factory
 const makeIcon = (color, emoji) =>
   L.divIcon({
     className: '',
@@ -28,28 +27,24 @@ const makeIcon = (color, emoji) =>
   })
 
 const riderIcon = makeIcon('#F25C22', '🛵')
-
-// Shakiso, Ethiopia center
 const CENTER = [5.7926, 38.9821]
 
 export default function TrackingMap() {
+  const { t } = useTranslation()
   const { data: riders, loading } = useTracking()
-
   const hasLocations = riders.some(r => r.location?.lat && r.location?.lng)
 
   return (
     <div className="relative h-[520px] overflow-hidden rounded-2xl border border-[#E0E5F2] shadow-sm xl:col-span-2">
 
-      {/* Legend overlay */}
       <div className="absolute top-3 left-3 z-[1000] flex items-center gap-3 rounded-xl bg-white px-3 py-2 shadow-md text-xs font-semibold">
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#F25C22]" />Riders</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#F25C22]" />{t('liveTracking.legendRiders')}</span>
       </div>
 
-      {/* Rider count badge */}
       <div className="absolute bottom-4 right-4 z-[1000] rounded-xl bg-white px-3 py-2 shadow-md text-xs font-semibold text-[#1B2559]">
-        <p className="text-[#A3AED0] text-[10px] mb-0.5">Active Riders</p>
+        <p className="text-[#A3AED0] text-[10px] mb-0.5">{t('liveTracking.activeRiders')}</p>
         <span className="flex items-center gap-1.5 text-[#05CD99]">
-          {loading ? '...' : `${riders.length} online`}
+          {loading ? '...' : `${riders.length} ${t('liveTracking.online')}`}
         </span>
       </div>
 
@@ -91,7 +86,7 @@ export default function TrackingMap() {
         {!loading && !hasLocations && (
           <div className="flex h-full items-center justify-center">
             <p className="rounded-xl bg-white px-4 py-2 text-sm text-[#A3AED0] shadow-md">
-              No rider location data available
+              {t('liveTracking.noLocationData')}
             </p>
           </div>
         )}

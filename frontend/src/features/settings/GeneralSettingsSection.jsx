@@ -1,4 +1,5 @@
 import { Mail, Phone, Settings } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 function Field({ label, value, onChange, type = 'text', icon: Icon }) {
   return (
@@ -20,33 +21,34 @@ function Field({ label, value, onChange, type = 'text', icon: Icon }) {
 }
 
 export default function GeneralSettingsSection({ values, onChange }) {
+  const { t } = useTranslation()
+
   return (
     <section className="rounded-2xl border border-[#E0E5F2] bg-white p-6 shadow-sm space-y-5">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFF3E8]">
           <Settings size={18} className="text-[#F25C22]" />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-[#1B2559]">General Settings</h3>
-          <p className="text-xs text-[#A3AED0]">Configure your application settings</p>
+          <h3 className="text-sm font-bold text-[#1B2559]">{t('settings.general')}</h3>
+          <p className="text-xs text-[#A3AED0]">{t('settings.generalDesc')}</p>
         </div>
       </div>
 
       <Field
-        label="Application Name"
+        label={t('settings.appName')}
         value={values.appName}
         onChange={(v) => onChange('appName', v)}
       />
       <Field
-        label="Support Email"
+        label={t('settings.supportEmail')}
         value={values.email}
         onChange={(v) => onChange('email', v)}
         type="email"
         icon={Mail}
       />
       <Field
-        label="Support Phone"
+        label={t('settings.supportPhone')}
         value={values.phone}
         onChange={(v) => onChange('phone', v)}
         icon={Phone}

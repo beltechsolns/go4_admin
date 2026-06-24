@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '../constants/routes'
 import api from '../api/client'
 
 export default function LoginPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [email, setEmail] = useState('admin@g4delivery.com')
   const [password, setPassword] = useState('admin123')
@@ -19,7 +21,7 @@ export default function LoginPage() {
       localStorage.setItem('token', res.data.data.token)
       navigate(ROUTES.dashboard, { replace: true })
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Check your credentials.')
+      setError(err.response?.data?.error || t('auth.loginError'))
     } finally {
       setLoading(false)
     }
@@ -30,7 +32,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-[#E0E5F2] bg-white p-8 shadow-sm">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-[#1B2559]">G4 Delivery Admin</h1>
-          <p className="mt-1 text-sm text-[#A3AED0]">Sign in to your account</p>
+          <p className="mt-1 text-sm text-[#A3AED0]">{t('auth.loginSubtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -39,7 +41,7 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label className="mb-1.5 block text-xs font-semibold text-[#1B2559]">Email</label>
+            <label className="mb-1.5 block text-xs font-semibold text-[#1B2559]">{t('auth.email')}</label>
             <input
               type="email"
               value={email}
@@ -51,12 +53,12 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-semibold text-[#1B2559]">Password</label>
+            <label className="mb-1.5 block text-xs font-semibold text-[#1B2559]">{t('auth.password')}</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder="********"
               required
               className="w-full rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm text-[#1B2559] outline-none transition-colors focus:border-[#F25C22]"
             />
@@ -67,7 +69,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-xl bg-[#F25C22] py-2.5 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:opacity-60"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? t('auth.signingIn') : t('auth.signIn')}
           </button>
         </form>
       </div>

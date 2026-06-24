@@ -1,8 +1,11 @@
 import { Ban, MapPin, Star, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import StatusBadge from '../../components/shared/StatusBadge'
 import { LoadingRows, EmptyState } from '../../components/shared/LoadingRows'
 
 export default function RidersTable({ data = [], loading, error, onRemove, onToggleStatus }) {
+  const { t } = useTranslation()
+
   return (
     <div className="overflow-x-auto">
       {error && (
@@ -11,20 +14,20 @@ export default function RidersTable({ data = [], loading, error, onRemove, onTog
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="bg-[#F8F9FC] text-xs font-bold uppercase text-[#A3AED0]">
-            <th className="rounded-l-xl p-4">Rider</th>
-            <th className="p-4">Vehicle</th>
-            <th className="p-4">Zone</th>
-            <th className="p-4">Deliveries</th>
-            <th className="p-4">Rating</th>
-            <th className="p-4">Status</th>
-            <th className="rounded-r-xl p-4 text-center">Actions</th>
+            <th className="rounded-l-xl p-4">{t('riders.rider')}</th>
+            <th className="p-4">{t('riders.vehicle')}</th>
+            <th className="p-4">{t('riders.zone')}</th>
+            <th className="p-4">{t('riders.deliveries')}</th>
+            <th className="p-4">{t('riders.rating')}</th>
+            <th className="p-4">{t('riders.status')}</th>
+            <th className="rounded-r-xl p-4 text-center">{t('riders.actions')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[#F4F7FE]">
           {loading
             ? <LoadingRows cols={7} rows={5} />
             : data.length === 0
-              ? <EmptyState message="No riders found" />
+              ? <EmptyState message={t('riders.noRiders')} />
               : data.map((r) => (
                   <tr key={r.id} className="font-medium text-[#1B2559] hover:bg-[#F8F9FC]/60">
                     <td className="p-4 font-bold">{r.full_name}</td>
@@ -45,10 +48,10 @@ export default function RidersTable({ data = [], loading, error, onRemove, onTog
                     <td className="p-4"><StatusBadge label={r.status} /></td>
                     <td className="p-4">
                       <div className="flex justify-center gap-3 text-[#A3AED0]">
-                        <button onClick={() => onToggleStatus(r.id)} title="Toggle status" className="hover:text-[#1B2559]">
+                        <button onClick={() => onToggleStatus(r.id)} title={t('riders.toggleStatus')} className="hover:text-[#1B2559]">
                           <Ban size={15} />
                         </button>
-                        <button onClick={() => onRemove(r.id)} title="Remove rider" className="hover:text-red-500">
+                        <button onClick={() => onRemove(r.id)} title={t('riders.removeRider')} className="hover:text-red-500">
                           <Trash2 size={15} />
                         </button>
                       </div>

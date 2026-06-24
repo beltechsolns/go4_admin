@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS settings (
   notify_delivery_complete BOOLEAN DEFAULT true,
   notify_rider_offline BOOLEAN DEFAULT true,
   language VARCHAR(5) DEFAULT 'en',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 

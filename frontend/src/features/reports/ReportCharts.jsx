@@ -1,7 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import Card from '../../components/shared/Card'
 import { useDeliveryTrends, usePeakHours, useRiderPerformance, useOrdersByCategory } from '../../hooks/useReports'
 
-// SVG dims
 const TW = 380, TH = 180, TPL = 40, TPR = 10, TPT = 10, TPB = 30
 const TCW = TW - TPL - TPR, TCH = TH - TPT - TPB
 
@@ -37,12 +37,12 @@ function Skeleton() {
 }
 
 export default function ReportCharts() {
+  const { t } = useTranslation()
   const { data: trends,     loading: tL } = useDeliveryTrends()
   const { data: peakHours,  loading: pL } = usePeakHours()
   const { data: performers, loading: rL } = useRiderPerformance()
   const { data: categories, loading: cL } = useOrdersByCategory()
 
-  // — Trends chart —
   const tMax = Math.max(...trends.map(d => d.total), 1)
   const tStep = Math.ceil(tMax / 4) || 1
   const yTLabels = [tStep*4, tStep*3, tStep*2, tStep, 0]
@@ -50,18 +50,15 @@ export default function ReportCharts() {
   const tX = (i)   => TPL + (i / (Math.max(trends.length - 1, 1))) * TCW
   const buildLine = (key) => trends.map((d, i) => `${i === 0 ? 'M' : 'L'} ${tX(i)} ${tY(d[key])}`).join(' ')
 
-  // — Peak hours chart —
   const pMax  = Math.max(...peakHours.map(h => h.value), 1)
   const pStep = Math.ceil(pMax / 4) || 1
   const yPLabels = [pStep*4, pStep*3, pStep*2, pStep, 0]
-  // Show only every 4th hour label to avoid crowding
   const visiblePeak = peakHours.filter((_, i) => i % 4 === 0 || peakHours.length <= 8
     ? true : [0,3,6,9,12,15,18,21,23].includes(parseInt(_.label)))
   const pBarW  = (PCW / Math.max(peakHours.length, 1)) * 0.6
   const pBarGap = PCW / Math.max(peakHours.length, 1)
   const pY = (val) => PPT + PCH - (val / (pStep * 4)) * PCH
 
-  // — Pie chart —
   const slices = buildPieSlices(
     categories.length
       ? categories.map(c => ({ ...c, label: `${c.label} ${c.pct}%` }))
@@ -71,10 +68,9 @@ export default function ReportCharts() {
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
 
-      {/* Delivery Trends */}
-      <Card title="Delivery Trends (Last 7 Days)">
+      <Card title={t('reports.deliveryTrends')}>
         {tL ? <Skeleton /> : trends.length === 0 ? (
-          <p className="py-12 text-center text-sm text-[#A3AED0]">No delivery data yet</p>
+          <p className="py-12 text-center text-sm text-[#A3AED0]">{t('reports.noDeliveryData')}</p>
         ) : (
           <>
             <svg viewBox={`0 0 ${TW} ${TH}`} className="w-full h-auto">
@@ -100,16 +96,15 @@ export default function ReportCharts() {
               ))}
             </svg>
             <div className="mt-2 flex items-center gap-4 text-xs font-medium text-[#64748b]">
-              <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#F25C22] inline-block" /> Total</span>
-              <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#05CD99] inline-block" /> Completed</span>
-              <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#FF4D4D] inline-block" /> Cancelled</span>
+              <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#F25C22] inline-block" /> {t('reports.total')}</span>
+              <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#05CD99] inline-block" /> {t('reports.completed')}</span>
+              <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#FF4D4D] inline-block" /> {t('reports.cancelled')}</span>
             </div>
           </>
         )}
       </Card>
 
-      {/* Orders by Category */}
-      <Card title="Orders by Category">
+      <Card title={t('reports.ordersByCategory')}>
         {cL ? <Skeleton /> : (
           <div className="flex items-center gap-4">
             <svg viewBox="0 0 260 190" className="w-48 h-auto shrink-0">
@@ -132,16 +127,15 @@ export default function ReportCharts() {
                   <span className="text-[#A3AED0]">{c.pct}%</span>
                 </div>
               ))}
-              {categories.length === 0 && <p className="text-[#A3AED0]">No data yet</p>}
+              {categories.length === 0 && <p className="text-[#A3AED0]">{t('reports.noDataYet')}</p>}
             </div>
           </div>
         )}
       </Card>
 
-      {/* Peak Ordering Hours */}
-      <Card title="Peak Ordering Hours">
+      <Card title={t('reports.peakOrderingHours')}>
         {pL ? <Skeleton /> : peakHours.length === 0 ? (
-          <p className="py-12 text-center text-sm text-[#A3AED0]">No order data yet</p>
+          <p className="py-12 text-center text-sm text-[#A3AED0]">{t('reports.noOrderData')}</p>
         ) : (
           <svg viewBox={`0 0 ${PW} ${PH}`} className="w-full h-auto">
             {yPLabels.map((v, i) => {
@@ -175,10 +169,9 @@ export default function ReportCharts() {
         )}
       </Card>
 
-      {/* Top Performers */}
-      <Card title="Top Performers">
+      <Card title={t('reports.riderPerformance')}>
         {rL ? <Skeleton /> : performers.length === 0 ? (
-          <p className="py-12 text-center text-sm text-[#A3AED0]">No performance data yet</p>
+          <p className="py-12 text-center text-sm text-[#A3AED0]">{t('reports.noPerformanceData')}</p>
         ) : (
           <div className="space-y-3">
             {performers.slice(0, 5).map((p, i) => (
@@ -189,13 +182,13 @@ export default function ReportCharts() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-[#1B2559] leading-tight">{p.full_name}</p>
                   <p className="text-xs text-[#A3AED0]">
-                    {p.total_deliveries} deliveries&nbsp;
-                    <span className="text-[#05CD99] font-semibold">{p.success_rate}% success</span>
+                    {p.total_deliveries} {t('reports.deliveries')}&nbsp;
+                    <span className="text-[#05CD99] font-semibold">{p.success_rate}% {t('reports.success')}</span>
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-[10px] text-[#A3AED0]">Avg. Time</p>
-                  <p className="text-sm font-bold text-[#1B2559]">{p.avg_delivery_time} min</p>
+                  <p className="text-[10px] text-[#A3AED0]">{t('reports.avgTime')}</p>
+                  <p className="text-sm font-bold text-[#1B2559]">{p.avg_delivery_time} {t('dashboard.minutes')}</p>
                 </div>
               </div>
             ))}

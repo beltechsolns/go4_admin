@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next'
 import Card from '../../components/shared/Card'
 import { useDashboardStats } from '../../hooks/useDashboard'
 
 export default function SummaryCards() {
+  const { t } = useTranslation()
   const { data, loading } = useDashboardStats()
 
   if (loading) {
@@ -17,11 +19,11 @@ export default function SummaryCards() {
     )
   }
 
-  const cards = data ?? [
-    { title: 'Total Orders', value: 0 },
-    { title: 'Active Deliveries', value: 0 },
-    { title: 'Available Riders', value: 0 },
-    { title: 'Total Revenue', value: 'ETB 0' },
+  const cards = data?.length ? data : [
+    { title: t('dashboard.totalOrders'), value: 0 },
+    { title: t('dashboard.activeDeliveries'), value: 0 },
+    { title: t('dashboard.availableRiders'), value: 0 },
+    { title: t('dashboard.totalRevenue'), value: 'ETB 0' },
   ]
 
   return (

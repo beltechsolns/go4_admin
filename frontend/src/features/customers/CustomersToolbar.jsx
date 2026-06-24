@@ -1,6 +1,9 @@
 import { Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export default function CustomersToolbar({ search, status, onSearch, onStatus }) {
+  const { t } = useTranslation()
+
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
       <div className="relative w-full max-w-sm">
@@ -9,7 +12,7 @@ export default function CustomersToolbar({ search, status, onSearch, onStatus })
           type="text"
           value={search}
           onChange={(e) => onSearch(e.target.value)}
-          placeholder="Search customers..."
+          placeholder={t('customers.search')}
           className="w-full rounded-xl border border-[#E0E5F2] bg-white py-2 pl-10 pr-4 text-sm text-[#1B2559] focus:border-[#F25C22] focus:outline-none"
         />
       </div>
@@ -18,10 +21,10 @@ export default function CustomersToolbar({ search, status, onSearch, onStatus })
         onChange={(e) => onStatus(e.target.value)}
         className="rounded-xl border border-[#E0E5F2] px-4 py-2 text-sm font-semibold text-[#1B2559] outline-none"
       >
-        <option value="">All Status</option>
-        <option value="Active">Active</option>
-        <option value="Inactive">Inactive</option>
-        <option value="Banned">Banned</option>
+        <option value="">{t('customers.allStatus')}</option>
+        <option value="Active">{t('customers.active')}</option>
+        <option value="Inactive">{t('customers.inactive')}</option>
+        <option value="Banned">{t('customers.banned')}</option>
       </select>
     </div>
   )

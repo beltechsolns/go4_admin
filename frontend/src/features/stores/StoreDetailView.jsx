@@ -1,13 +1,15 @@
 import { ArrowLeft, Edit, Phone, Plus, Search, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useStoreCategories, useStoreProducts } from '../../hooks/useStores'
 import useApi from '../../hooks/useApi'
 import api from '../../api/client'
 
 export default function StoreDetailView({ storeId, onBack }) {
+  const { t } = useTranslation()
   const [subTab, setSubTab]     = useState('products')
   const [search, setSearch]     = useState('')
-  const [catFilter, setCatFilter] = useState('All Categories')
+  const [catFilter, setCatFilter] = useState(t('stores.allCategories'))
 
   const { data: store } = useApi(() => api.get(`/stores/${storeId}`).then(r => r.data.data), [storeId])
   const { data: products, loading: pLoading, removeProduct, refetch: refetchProducts } =
@@ -15,7 +17,8 @@ export default function StoreDetailView({ storeId, onBack }) {
   const { data: categories, loading: cLoading, removeCategory, refetch: refetchCats } =
     useStoreCategories(storeId)
 
-  const productCategories = ['All Categories', ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))]
+  const allCat = t('stores.allCategories')
+  const productCategories = [allCat, ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))]
 
   const typeBadgeColors = {
     Restaurant:   'bg-purple-100 text-purple-700',
@@ -26,14 +29,14 @@ export default function StoreDetailView({ storeId, onBack }) {
   }
 
   if (!store) {
-    return <div className="p-8 text-center text-sm text-[#A3AED0]">Loading store...</div>
+    return <div className="p-8 text-center text-sm text-[#A3AED0]">{t('stores.loadingStore')}</div>
   }
 
   return (
     <div className="space-y-5">
       <button onClick={onBack}
         className="flex items-center gap-1.5 text-sm font-medium text-[#64748b] hover:text-[#1B2559] transition-colors">
-        <ArrowLeft size={16} /> Back to Stores
+        <ArrowLeft size={16} /> {t('stores.backToList')}
       </button>
 
       <div className="flex items-center gap-5 rounded-2xl bg-[#FFF3E8] p-5">
@@ -57,7 +60,7 @@ export default function StoreDetailView({ storeId, onBack }) {
         {['products', 'categories'].map((tab) => (
           <button key={tab} onClick={() => setSubTab(tab)}
             className={`pb-3 text-sm font-semibold transition-colors capitalize ${subTab === tab ? 'border-b-2 border-[#F25C22] text-[#F25C22]' : 'text-[#A3AED0] hover:text-[#1B2559]'}`}>
-            {tab} ({tab === 'products' ? products.length : categories.length})
+            {tab === 'products' ? t('stores.productsTab') : t('stores.categoriesTab')} ({tab === 'products' ? products.length : categories.length})
           </button>
         ))}
       </div>
@@ -67,7 +70,7 @@ export default function StoreDetailView({ storeId, onBack }) {
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-md">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A3AED0]" />
-              <input type="text" placeholder="Search products..." value={search}
+              <input type="text" placeholder={t('stores.searchProducts')} value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-xl border border-[#E0E5F2] py-2.5 pl-9 pr-4 text-sm text-[#1B2559] outline-none focus:border-[#F25C22] placeholder:text-[#A3AED0]" />
             </div>
@@ -76,25 +79,25 @@ export default function StoreDetailView({ storeId, onBack }) {
               {productCategories.map((c) => <option key={c}>{c}</option>)}
             </select>
             <button className="flex items-center gap-2 rounded-xl bg-[#F25C22] px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors shrink-0">
-              <Plus size={15} /> Add Product
+              <Plus size={15} /> {t('stores.addProduct')}
             </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-[#F4F7FE]">
-                  <th className="pb-3 text-xs font-bold text-[#1B2559]">Product</th>
-                  <th className="pb-3 text-xs font-bold text-[#1B2559]">Category</th>
-                  <th className="pb-3 text-xs font-bold text-[#1B2559]">Price</th>
-                  <th className="pb-3 text-xs font-bold text-[#1B2559]">Status</th>
-                  <th className="pb-3 text-xs font-bold text-[#1B2559]">Actions</th>
+                  <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.product')}</th>
+                  <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.category')}</th>
+                  <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.price')}</th>
+                  <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('common.status')}</th>
+                  <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F4F7FE]">
                 {pLoading
-                  ? <tr><td colSpan={5} className="p-6 text-center text-sm text-[#A3AED0]">Loading products...</td></tr>
+                  ? <tr><td colSpan={5} className="p-6 text-center text-sm text-[#A3AED0]">{t('stores.loadingProducts')}</td></tr>
                   : products.length === 0
-                    ? <tr><td colSpan={5} className="p-6 text-center text-sm text-[#A3AED0]">No products found</td></tr>
+                    ? <tr><td colSpan={5} className="p-6 text-center text-sm text-[#A3AED0]">{t('stores.noProducts')}</td></tr>
                     : products.map((p) => (
                         <tr key={p.id} className="hover:bg-[#FAFAFA]">
                           <td className="py-3.5 pr-4">
@@ -124,11 +127,11 @@ export default function StoreDetailView({ storeId, onBack }) {
       ) : (
         <div className="rounded-2xl border border-[#E0E5F2] bg-white p-5 shadow-sm space-y-5">
           <button className="flex items-center gap-2 rounded-xl bg-[#F25C22] px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors">
-            <Plus size={15} /> Add Category
+            <Plus size={15} /> {t('stores.addCategory')}
           </button>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {cLoading
-              ? <p className="text-sm text-[#A3AED0]">Loading...</p>
+              ? <p className="text-sm text-[#A3AED0]">{t('stores.loading')}</p>
               : categories.map((cat) => (
                   <div key={cat.id} className="flex flex-col rounded-2xl border border-[#E0E5F2] bg-white p-4 shadow-sm">
                     <div className="flex items-start justify-between">
@@ -139,7 +142,7 @@ export default function StoreDetailView({ storeId, onBack }) {
                       </div>
                     </div>
                     <h4 className="mt-3 text-sm font-bold text-[#1B2559]">{cat.name}</h4>
-                    <p className="text-xs text-[#A3AED0]">{cat.product_count} products</p>
+                    <p className="text-xs text-[#A3AED0]">{cat.product_count} {t('stores.productsCount')}</p>
                   </div>
                 ))
             }

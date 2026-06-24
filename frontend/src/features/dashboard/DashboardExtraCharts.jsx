@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import Card from '../../components/shared/Card'
 import { useDeliveryTrends, usePeakHours, useRiderPerformance, useOrdersByCategory } from '../../hooks/useReports'
 
@@ -36,8 +37,9 @@ function buildPieSlices(pieData) {
 }
 
 function DeliveryTrendsChart({ data, loading }) {
+  const { t } = useTranslation()
   if (loading) return <Skeleton />
-  if (!data.length) return <p className="py-12 text-center text-sm text-[#A3AED0]">No delivery data yet</p>
+  if (!data.length) return <p className="py-12 text-center text-sm text-[#A3AED0]">{t('dashboard.noData')}</p>
 
   const tMax = Math.max(...data.map(d => d.total), 1)
   const tStep = Math.ceil(tMax / 4) || 1
@@ -71,17 +73,18 @@ function DeliveryTrendsChart({ data, loading }) {
         ))}
       </svg>
       <div className="mt-2 flex items-center gap-4 text-xs font-medium text-[#64748b]">
-        <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#F25C22] inline-block" /> Total</span>
-        <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#05CD99] inline-block" /> Completed</span>
-        <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#FF4D4D] inline-block" /> Cancelled</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#F25C22] inline-block" /> {t('dashboard.total')}</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#05CD99] inline-block" /> {t('dashboard.completed')}</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#FF4D4D] inline-block" /> {t('dashboard.cancelled')}</span>
       </div>
     </>
   )
 }
 
 function PeakHoursChart({ data, loading }) {
+  const { t } = useTranslation()
   if (loading) return <Skeleton />
-  if (!data.length) return <p className="py-12 text-center text-sm text-[#A3AED0]">No order data yet</p>
+  if (!data.length) return <p className="py-12 text-center text-sm text-[#A3AED0]">{t('dashboard.noOrderData')}</p>
 
   const pMax = Math.max(...data.map(h => h.value), 1)
   const pStep = Math.ceil(pMax / 4) || 1
@@ -123,12 +126,13 @@ function PeakHoursChart({ data, loading }) {
 }
 
 function OrdersByCategoryChart({ data, loading }) {
+  const { t } = useTranslation()
   if (loading) return <Skeleton />
 
   const slices = buildPieSlices(
     data.length
       ? data.map(c => ({ ...c, label: `${c.label} ${c.pct}%` }))
-      : [{ label: 'No data', pct: 100, color: '#E0E5F2' }]
+      : [{ label: t('dashboard.noData'), pct: 100, color: '#E0E5F2' }]
   )
 
   return (
@@ -153,15 +157,16 @@ function OrdersByCategoryChart({ data, loading }) {
             <span className="text-[#A3AED0]">{c.value} ({c.pct}%)</span>
           </div>
         ))}
-        {data.length === 0 && <p className="text-[#A3AED0]">No data yet</p>}
+        {data.length === 0 && <p className="text-[#A3AED0]">{t('dashboard.noDataYet')}</p>}
       </div>
     </div>
   )
 }
 
 function TopPerformersWidget({ data, loading }) {
+  const { t } = useTranslation()
   if (loading) return <Skeleton />
-  if (!data.length) return <p className="py-12 text-center text-sm text-[#A3AED0]">No performance data yet</p>
+  if (!data.length) return <p className="py-12 text-center text-sm text-[#A3AED0]">{t('dashboard.noPerformanceData')}</p>
 
   return (
     <div className="space-y-3">
@@ -173,13 +178,13 @@ function TopPerformersWidget({ data, loading }) {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-[#1B2559] leading-tight">{p.full_name}</p>
             <p className="text-xs text-[#A3AED0]">
-              {p.total_deliveries} deliveries
-              <span className="text-[#05CD99] font-semibold"> &middot; {p.success_rate}% success</span>
+              {p.total_deliveries} {t('dashboard.deliveries')}
+              <span className="text-[#05CD99] font-semibold"> &middot; {p.success_rate}% {t('dashboard.success')}</span>
             </p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-[10px] text-[#A3AED0]">Avg. Time</p>
-            <p className="text-sm font-bold text-[#1B2559]">{p.avg_delivery_time} min</p>
+            <p className="text-[10px] text-[#A3AED0]">{t('dashboard.avgTime')}</p>
+            <p className="text-sm font-bold text-[#1B2559]">{p.avg_delivery_time} {t('dashboard.minutes')}</p>
           </div>
         </div>
       ))}
@@ -188,6 +193,7 @@ function TopPerformersWidget({ data, loading }) {
 }
 
 export default function DashboardExtraCharts() {
+  const { t } = useTranslation()
   const { data: trends, loading: tL } = useDeliveryTrends()
   const { data: peakHours, loading: pL } = usePeakHours()
   const { data: performers, loading: rL } = useRiderPerformance()
@@ -195,16 +201,16 @@ export default function DashboardExtraCharts() {
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-      <Card title="Delivery Trends (Last 7 Days)">
+      <Card title={t('dashboard.deliveryTrends')}>
         <DeliveryTrendsChart data={trends} loading={tL} />
       </Card>
-      <Card title="Orders by Category">
+      <Card title={t('dashboard.ordersByCategory')}>
         <OrdersByCategoryChart data={categories} loading={cL} />
       </Card>
-      <Card title="Peak Ordering Hours">
+      <Card title={t('dashboard.peakOrderingHours')}>
         <PeakHoursChart data={peakHours} loading={pL} />
       </Card>
-      <Card title="Top Performers">
+      <Card title={t('dashboard.topPerformers')}>
         <TopPerformersWidget data={performers} loading={rL} />
       </Card>
     </div>
