@@ -53,11 +53,8 @@ export default function ReportCharts() {
   const pMax  = Math.max(...peakHours.map(h => h.value), 1)
   const pStep = Math.ceil(pMax / 4) || 1
   const yPLabels = [pStep*4, pStep*3, pStep*2, pStep, 0]
-  const visiblePeak = peakHours.filter((_, i) => i % 4 === 0 || peakHours.length <= 8
-    ? true : [0,3,6,9,12,15,18,21,23].includes(parseInt(_.label)))
   const pBarW  = (PCW / Math.max(peakHours.length, 1)) * 0.6
   const pBarGap = PCW / Math.max(peakHours.length, 1)
-  const pY = (val) => PPT + PCH - (val / (pStep * 4)) * PCH
 
   const slices = buildPieSlices(
     categories.length

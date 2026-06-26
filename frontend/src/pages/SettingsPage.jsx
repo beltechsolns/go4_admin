@@ -11,21 +11,9 @@ export default function SettingsPage() {
   const { t, i18n } = useTranslation()
   const { data, loading, saving, error, saved, save } = useSettings()
 
-  const [general, setGeneral]           = useState({ appName: '', email: '', phone: '' })
-  const [notifications, setNotifications] = useState({ newOrder: true, delivery: true, system: false })
-  const [language, setLanguage]         = useState('en')
-
-  useEffect(() => {
-    if (data) {
-      setGeneral({ appName: data.app_name, email: data.support_email, phone: data.support_phone })
-      setNotifications({
-        newOrder:  data.notify_new_order,
-        delivery:  data.notify_delivery_complete,
-        system:    data.notify_rider_offline,
-      })
-      setLanguage(data.language)
-    }
-  }, [data])
+  const [general, setGeneral]           = useState(data ? { appName: data.app_name, email: data.support_email, phone: data.support_phone } : { appName: '', email: '', phone: '' })
+  const [notifications, setNotifications] = useState(data ? { newOrder: data.notify_new_order, delivery: data.notify_delivery_complete, system: data.notify_rider_offline } : { newOrder: true, delivery: true, system: false })
+  const [language, setLanguage]         = useState(data ? data.language : 'en')
 
   // Sync frontend language state → i18n locale + localStorage
   useEffect(() => {

@@ -12,9 +12,9 @@ export default function StoreDetailView({ storeId, onBack }) {
   const [catFilter, setCatFilter] = useState(t('stores.allCategories'))
 
   const { data: store } = useApi(() => api.get(`/stores/${storeId}`).then(r => r.data.data), [storeId])
-  const { data: products, loading: pLoading, removeProduct, refetch: refetchProducts } =
+  const { data: products, loading: pLoading, removeProduct } =
     useStoreProducts(storeId, { search, category: catFilter })
-  const { data: categories, loading: cLoading, removeCategory, refetch: refetchCats } =
+  const { data: categories, loading: cLoading, removeCategory } =
     useStoreCategories(storeId)
 
   const allCat = t('stores.allCategories')

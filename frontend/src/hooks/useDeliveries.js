@@ -7,8 +7,11 @@ export default function useDeliveries({ search = '', status = '', page = 1 } = {
   const [pages, setPages]     = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
+  const [key, setKey]         = useState(0)
 
-  const fetch = useCallback(() => {
+  useEffect(() => {
+    let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     const params = { page }
     if (search) params.search = search
@@ -16,26 +19,31 @@ export default function useDeliveries({ search = '', status = '', page = 1 } = {
 
     api.get('/deliveries', { params })
       .then(r => {
+        if (cancelled) return
         setData(r.data.data)
         setTotal(r.data.total)
         setPages(r.data.pages)
         setError(null)
       })
-      .catch(err => setError(err.response?.data?.error || 'Failed to load deliveries'))
-      .finally(() => setLoading(false))
-  }, [search, status, page])
-
-  useEffect(() => { fetch() }, [fetch])
+      .catch(err => {
+        if (cancelled) return
+        setError(err.response?.data?.error || 'Failed to load deliveries')
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [search, status, page, key])
 
   const assignRider = async (deliveryId, riderId) => {
     await api.patch(`/deliveries/${deliveryId}/assign`, { rider_id: riderId })
-    fetch()
+    setKey(k => k + 1)
   }
 
   const updateStatus = async (deliveryId, status, note = '') => {
     await api.patch(`/deliveries/${deliveryId}/status`, { status, note })
-    fetch()
+    setKey(k => k + 1)
   }
 
-  return { data, total, pages, loading, error, refetch: fetch, assignRider, updateStatus }
+  const refetch = useCallback(() => setKey(k => k + 1), [])
+
+  return { data, total, pages, loading, error, refetch, assignRider, updateStatus }
 }

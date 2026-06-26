@@ -160,7 +160,7 @@ function NavContent({ onToggleUserMenu, onClose }) {
   )
 }
 
-export default function Sidebar({ userMenuOpen, onToggleUserMenu }) {
+export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
