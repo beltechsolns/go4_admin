@@ -1,7 +1,7 @@
 import { Download, FileSpreadsheet, FileText } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { utils, writeFile } from 'xlsx'
+import { utils, write } from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import api from '../../api/client'
@@ -35,7 +35,14 @@ export default function ExportModal({ onClose }) {
       utils.bookAppendSheet(wb, utils.json_to_sheet(categories), 'Categories')
       utils.bookAppendSheet(wb, utils.json_to_sheet(riders), 'Rider Performance')
 
-      writeFile(wb, 'G4_Delivery_Report.xlsx')
+      const data = write(wb, { bookType: 'xlsx', type: 'array' })
+      const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'G4_Delivery_Report.xlsx'
+      a.click()
+      URL.revokeObjectURL(url)
     } catch { /* ignore */ }
     setExporting(null)
     onClose()
@@ -47,56 +54,65 @@ export default function ExportModal({ onClose }) {
       const { summary, trends, peakHours, categories, riders } = await fetchAll()
       const doc = new jsPDF()
 
-      doc.setFontSize(18).text('G4 Delivery Report', 14, 20)
+      doc.setTextColor(242, 92, 34)
+      doc.setFontSize(20).text('G4 Delivery Report', 14, 20)
+      doc.setTextColor(100)
       doc.setFontSize(10).text(`Generated: ${new Date().toLocaleDateString()}`, 14, 28)
 
+      const brandHead = (rows) => ({
+        headStyles: { fillColor: [242, 92, 34], textColor: [255, 255, 255], fontStyle: 'bold' },
+        body: rows,
+        theme: 'grid',
+      })
+
       if (summary) {
+        doc.setTextColor(242, 92, 34)
         doc.setFontSize(14).text('Summary', 14, 40)
         const rows = Object.entries(summary).map(([k, v]) => [k, String(v ?? '')])
-        autoTable(doc, { startY: 44, head: [['Metric', 'Value']], body: rows, theme: 'grid' })
+        autoTable(doc, { startY: 44, head: [['Metric', 'Value']], ...brandHead(rows) })
       }
 
       let y = doc.lastAutoTable.finalY + 14
       if (trends.length) {
+        doc.setTextColor(242, 92, 34)
         doc.setFontSize(14).text('Delivery Trends', 14, y)
         y += 6
         autoTable(doc, {
           startY: y, head: [['Date', 'Total', 'Completed', 'Cancelled']],
-          body: trends.map(r => [r.date, r.total, r.completed, r.cancelled]),
-          theme: 'grid',
+          ...brandHead(trends.map(r => [r.date, r.total, r.completed, r.cancelled])),
         })
         y = doc.lastAutoTable.finalY + 14
       }
 
       if (peakHours.length) {
+        doc.setTextColor(242, 92, 34)
         doc.setFontSize(14).text('Peak Hours', 14, y)
         y += 6
         autoTable(doc, {
           startY: y, head: [['Hour', 'Orders']],
-          body: peakHours.map(r => [`${r.hour}:00`, r.count]),
-          theme: 'grid',
+          ...brandHead(peakHours.map(r => [`${r.hour}:00`, r.count])),
         })
         y = doc.lastAutoTable.finalY + 14
       }
 
       if (categories.length) {
+        doc.setTextColor(242, 92, 34)
         doc.setFontSize(14).text('Orders by Category', 14, y)
         y += 6
         autoTable(doc, {
           startY: y, head: [['Category', 'Orders']],
-          body: categories.map(r => [r.type ?? r.name, r.count]),
-          theme: 'grid',
+          ...brandHead(categories.map(r => [r.type ?? r.name, r.count])),
         })
         y = doc.lastAutoTable.finalY + 14
       }
 
       if (riders.length) {
+        doc.setTextColor(242, 92, 34)
         doc.setFontSize(14).text('Rider Performance', 14, Math.min(y, doc.internal.pageSize.height - 40))
         autoTable(doc, {
           startY: Math.min(y, doc.internal.pageSize.height - 40),
           head: [['Rider', 'Total Deliveries', 'Success Rate', 'Avg Time']],
-          body: riders.map(r => [r.full_name, r.total_deliveries, `${r.success_rate}%`, r.avg_delivery_time]),
-          theme: 'grid',
+          ...brandHead(riders.map(r => [r.full_name, r.total_deliveries, `${r.success_rate}%`, r.avg_delivery_time])),
         })
       }
 
