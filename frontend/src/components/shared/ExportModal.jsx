@@ -1,7 +1,7 @@
 import { Download, FileSpreadsheet, FileText } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import * as XLSX from 'xlsx'
+import { utils, write } from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import api from '../../api/client'
@@ -27,15 +27,15 @@ export default function ExportModal({ onClose }) {
     setExporting('excel')
     try {
       const { summary, trends, peakHours, categories, riders } = await fetchAll()
-      const wb = XLSX.utils.book_new()
+      const wb = utils.book_new()
 
-      if (summary) XLSX.utils.bookAppendSheet(wb, XLSX.utils.json_to_sheet([summary]), 'Summary')
-      if (trends?.length) XLSX.utils.bookAppendSheet(wb, XLSX.utils.json_to_sheet(trends), 'Delivery Trends')
-      if (peakHours?.length) XLSX.utils.bookAppendSheet(wb, XLSX.utils.json_to_sheet(peakHours), 'Peak Hours')
-      if (categories?.length) XLSX.utils.bookAppendSheet(wb, XLSX.utils.json_to_sheet(categories), 'Categories')
-      if (riders?.length) XLSX.utils.bookAppendSheet(wb, XLSX.utils.json_to_sheet(riders), 'Rider Performance')
+      if (summary) utils.bookAppendSheet(wb, utils.json_to_sheet([summary]), 'Summary')
+      if (trends?.length) utils.bookAppendSheet(wb, utils.json_to_sheet(trends), 'Delivery Trends')
+      if (peakHours?.length) utils.bookAppendSheet(wb, utils.json_to_sheet(peakHours), 'Peak Hours')
+      if (categories?.length) utils.bookAppendSheet(wb, utils.json_to_sheet(categories), 'Categories')
+      if (riders?.length) utils.bookAppendSheet(wb, utils.json_to_sheet(riders), 'Rider Performance')
 
-      const data = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' })
+      const data = write(wb, { bookType: 'xlsx', type: 'buffer' })
       const blob = new Blob([data])
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
