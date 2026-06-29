@@ -1,5 +1,5 @@
 import { Save } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import PageHeader from '../components/shared/PageHeader'
 import DeliveryFeesSection from '../features/pricing/DeliveryFeesSection'
@@ -10,7 +10,8 @@ export default function PricingPage() {
   const { t } = useTranslation()
   const { formValues, loading, saving, error, save } = usePricing()
 
-  const [values, setValues] = useState(formValues)
+  const [values, setValues] = useState(null)
+  useEffect(() => { if (formValues) setValues(formValues) }, [formValues])
 
   const handleChange = useCallback((key, val) => setValues((prev) => ({ ...prev, [key]: val })), [])
 
