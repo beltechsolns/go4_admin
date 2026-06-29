@@ -1,7 +1,7 @@
 import { Download, FileSpreadsheet, FileText } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { utils, writeFile } from 'xlsx'
+import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import api from '../../api/client'
@@ -27,23 +27,25 @@ export default function ExportModal({ onClose }) {
     setExporting('excel')
     try {
       const { summary, trends, peakHours, categories, riders } = await fetchAll()
-      const wb = utils.book_new()
+      const wb = XLSX.utils.book_new()
 
-      utils.bookAppendSheet(wb, utils.json_to_sheet([summary].flat()), 'Summary')
-      utils.bookAppendSheet(wb, utils.json_to_sheet(trends), 'Delivery Trends')
-      utils.bookAppendSheet(wb, utils.json_to_sheet(peakHours), 'Peak Hours')
-      utils.bookAppendSheet(wb, utils.json_to_sheet(categories), 'Categories')
-      utils.bookAppendSheet(wb, utils.json_to_sheet(riders), 'Rider Performance')
+      if (summary) XLSX.utils.bookAppendSheet(wb, XLSX.utils.json_to_sheet([summary]), 'Summary')
+      if (trends?.length) XLSX.utils.bookAppendSheet(wb, XLSX.utils.json_to_sheet(trends), 'Delivery Trends')
+      if (peakHours?.length) XLSX.utils.bookAppendSheet(wb, XLSX.utils.json_to_sheet(peakHours), 'Peak Hours')
+      if (categories?.length) XLSX.utils.bookAppendSheet(wb, XLSX.utils.json_to_sheet(categories), 'Categories')
+      if (riders?.length) XLSX.utils.bookAppendSheet(wb, XLSX.utils.json_to_sheet(riders), 'Rider Performance')
 
-      const data = write(wb, { bookType: 'xlsx', type: 'array' })
-      const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const data = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' })
+      const blob = new Blob([data])
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       a.download = 'G4_Delivery_Report.xlsx'
+      document.body.appendChild(a)
       a.click()
-      URL.revokeObjectURL(url)
-    } catch { /* ignore */ }
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 100)
+    } catch (e) { console.error('Excel export error:', e) }
     setExporting(null)
     onClose()
   }, [fetchAll, onClose])
