@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '../constants/routes'
 import api from '../api/client'
+import brandLogo from '../assets/brand.png'
 
 export default function LoginPage() {
   const { t } = useTranslation()
@@ -31,6 +32,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#F4F7FE] p-4">
       <div className="w-full max-w-md rounded-2xl border border-[#E0E5F2] bg-white p-8 shadow-sm">
         <div className="mb-8 text-center">
+          <img src={brandLogo} alt="G4 Delivery" className="mx-auto mb-4 h-20 w-20 object-contain" />
           <h1 className="text-2xl font-bold text-[#1B2559]">G4 Delivery Admin</h1>
           <p className="mt-1 text-sm text-[#A3AED0]">{t('auth.loginSubtitle')}</p>
         </div>

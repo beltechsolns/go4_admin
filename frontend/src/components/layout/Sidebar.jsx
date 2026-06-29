@@ -129,23 +129,21 @@ function NavContent({ onToggleUserMenu, onClose }) {
         </div>
 
         {/* Other nav items */}
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const active = location.pathname.startsWith(item.to)
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={onClose}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
-                active ? 'bg-[#F25C22] text-white shadow-md' : 'text-[#64748b] hover:text-[#1B2559]'
-              }`}
-            >
-              <Icon size={18} />
-              <span>{item.text}</span>
-            </NavLink>
-          )
-        })}
+        {navItems.map(({ to, text, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+                isActive ? 'bg-[#F25C22] text-white shadow-md' : 'text-[#64748b] hover:text-[#1B2559]'
+              }`
+            }
+          >
+            <Icon size={18} />
+            <span>{text}</span>
+          </NavLink>
+        ))}
       </nav>
 
       {/* Logout */}

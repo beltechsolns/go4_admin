@@ -1,7 +1,7 @@
 import { Download, FileSpreadsheet, FileText } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { utils, write } from 'xlsx'
+import { utils, writeFile } from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import api from '../../api/client'
