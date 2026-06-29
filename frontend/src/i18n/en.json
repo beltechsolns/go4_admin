@@ -260,6 +260,12 @@
   "reports": {
     "title": "Reports & Analytics",
     "export": "Export Reports",
+    "exportReport": "Export Report",
+    "exportDesc": "Choose the format to export the report data.",
+    "exportExcel": "Export as Excel",
+    "exportExcelDesc": "Download as .xlsx file with multiple sheets",
+    "exportPDF": "Export as PDF",
+    "exportPDFDesc": "Download as .pdf file with formatted tables",
     "deliveryTrends": "Delivery Trends (Last 7 Days)",
     "peakOrderingHours": "Peak Ordering Hours",
     "ordersByCategory": "Orders by Category",
@@ -353,7 +359,8 @@
     "language": "Language Settings",
     "languageDesc": "Choose your preferred language",
     "english": "English",
-    "amharic": "Amharic"
+    "amharic": "Amharic",
+    "oromo": "Afaan Oromo"
   },
   "notFound": {
     "title": "404 - Page Not Found",

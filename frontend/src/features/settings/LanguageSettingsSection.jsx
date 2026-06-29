@@ -7,6 +7,7 @@ export default function LanguageSettingsSection({ value, onChange }) {
   const languages = [
     { key: 'am', label: t('settings.amharic') },
     { key: 'en', label: t('settings.english') },
+    { key: 'om', label: t('settings.oromo') },
   ]
 
   return (

@@ -259,6 +259,12 @@
   "reports": {
     "title": "ሪፖርቶች እና ትንታኔ",
     "export": "ሪፖርቶችን ወደ ውጭ ላክ",
+    "exportReport": "ሪፖርት ላክ",
+    "exportDesc": "የሪፖርቱን ውሂብ ለማውጣት ቅርጸቱን ይምረጡ።",
+    "exportExcel": "እንደ ኤክሴል ላክ",
+    "exportExcelDesc": "ባለብዙ ሉህ .xlsx ፋይል አድርጎ አውርድ",
+    "exportPDF": "እንደ PDF ላክ",
+    "exportPDFDesc": "በተቀረጹ ሰንጠረዦች እንደ .pdf ፋይል አውርድ",
     "deliveryTrends": "የአቅርቦት አዝማሚያዎች (የመጨረሻ 7 ቀናት)",
     "peakOrderingHours": "ከፍተኛ የትዕዛዝ ሰዓታት",
     "ordersByCategory": "በምድብ የተከፋፈሉ ትዕዛዞች",
@@ -352,7 +358,8 @@
     "language": "የቋንቋ ቅንብሮች",
     "languageDesc": "የሚፈልጉትን ቋንቋ ይምረጡ",
     "english": "እንግሊዝኛ",
-    "amharic": "አማርኛ"
+    "amharic": "አማርኛ",
+    "oromo": "አፋን ኦሮሞ"
   },
   "notFound": {
     "title": "404 - ገፅ አልተገኘም",

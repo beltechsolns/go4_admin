@@ -83,9 +83,11 @@ function NavContent({ onToggleUserMenu, onClose }) {
           <button
             onClick={handleToggle}
             className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-all ${
-              userMenuOpen || isUserManagementActive
+              isUserManagementActive
                 ? 'bg-[#F25C22] text-white shadow-md'
-                : 'text-[#64748b] hover:text-[#1B2559]'
+                : userMenuOpen
+                  ? 'bg-[#F4F7FE] text-[#1B2559]'
+                  : 'text-[#64748b] hover:text-[#1B2559]'
             }`}
           >
             <div className="flex items-center gap-3">

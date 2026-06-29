@@ -4,14 +4,17 @@ import { useTranslation } from 'react-i18next'
 function Toggle({ enabled, onToggle }) {
   return (
     <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
       onClick={onToggle}
       className={`relative h-7 w-12 rounded-full transition-colors duration-200 ${
         enabled ? 'bg-[#F25C22]' : 'bg-[#E0E5F2]'
       }`}
     >
       <span
-        className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-          enabled ? 'translate-x-6' : 'translate-x-1'
+        className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all duration-200 ${
+          enabled ? 'left-[26px]' : 'left-1'
         }`}
       />
     </button>

@@ -15,6 +15,14 @@ export default function SettingsPage() {
   const [notifications, setNotifications] = useState(data ? { newOrder: data.notify_new_order, delivery: data.notify_delivery_complete, system: data.notify_rider_offline } : { newOrder: true, delivery: true, system: false })
   const [language, setLanguage]         = useState(data ? data.language : 'en')
 
+  // Sync local state when settings load from API
+  useEffect(() => {
+    if (!data) return
+    setGeneral({ appName: data.app_name, email: data.support_email, phone: data.support_phone })
+    setNotifications({ newOrder: data.notify_new_order, delivery: data.notify_delivery_complete, system: data.notify_rider_offline })
+    setLanguage(data.language)
+  }, [data])
+
   // Sync frontend language state → i18n locale + localStorage
   useEffect(() => {
     i18n.changeLanguage(language)
