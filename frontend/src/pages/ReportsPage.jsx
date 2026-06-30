@@ -15,13 +15,26 @@ function defaultTo() {
   return new Date().toISOString().split('T')[0]
 }
 
+import { Component } from 'react'
+
+class ErrorBoundary extends Component {
+  state = { error: null }
+  static getDerivedStateFromError(error) { return { error } }
+  render() {
+    return this.state.error
+      ? <div className="p-8 text-center text-red-500">Error: {this.state.error.message}</div>
+      : this.props.children
+  }
+}
+
 export default function ReportsPage() {
   const { t } = useTranslation()
   const [showExport, setShowExport] = useState(false)
-  const [from, setFrom] = useState(defaultFrom)
-  const [to, setTo]     = useState(defaultTo)
+  const [from, setFrom] = useState(() => defaultFrom())
+  const [to, setTo]     = useState(() => defaultTo())
 
   return (
+    <ErrorBoundary>
     <div className="space-y-6">
       {showExport &&
         <ExportModal from={from} to={to} onClose={() => setShowExport(false)} />}
@@ -49,5 +62,6 @@ export default function ReportsPage() {
       <ReportCharts from={from} to={to} />
       <RiderPerformanceTable from={from} to={to} />
     </div>
+    </ErrorBoundary>
   )
 }
