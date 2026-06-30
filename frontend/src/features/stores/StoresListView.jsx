@@ -94,7 +94,7 @@ export default function StoresListView({ onOpenStore }) {
                     <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-600">{t('stores.active')}</span>
                   </div>
                   <button
-                    onClick={() => onOpenStore(toStoreSlug(store.name), store.id)}
+                    onClick={() => onOpenStore(toStoreSlug(store.name, store.id))}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#F25C22] py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors"
                   >
                     <Eye size={15} /> {t('stores.viewProducts')}
