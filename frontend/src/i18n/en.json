@@ -2,6 +2,7 @@
   "common": {
     "loading": "Loading...",
     "saving": "Saving...",
+    "save": "Save",
     "saveChanges": "Save Changes",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -235,6 +236,8 @@
     "adding": "Adding...",
     "nameRequired": "Store name is required.",
     "failedToAdd": "Failed to add store.",
+    "failedToUpdate": "Failed to update store.",
+    "productStatus": "Status",
     "imageUrlOptional": "Image URL (optional)",
     "validPriceRequired": "Please enter a valid price greater than 0.",
     "noCategory": "No category",

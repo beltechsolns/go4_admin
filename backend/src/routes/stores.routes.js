@@ -11,6 +11,7 @@ import {
   removeProduct,
   getCategories,
   createCategory,
+  updateCategory,
   removeCategory,
 } from '../controllers/stores.controller.js';
 import auth from '../middleware/auth.js';
@@ -56,6 +57,9 @@ router.get('/:id/categories', getCategories);
 
 // POST   /api/stores/:id/categories
 router.post('/:id/categories', createCategory);
+
+// PUT    /api/stores/:id/categories/:cid
+router.put('/:id/categories/:cid', updateCategory);
 
 // DELETE /api/stores/:id/categories/:cid
 router.delete('/:id/categories/:cid', removeCategory);

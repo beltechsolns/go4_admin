@@ -11,6 +11,7 @@ export default function ExportModal({ from, to, onClose }) {
   const { t } = useTranslation()
   const [exporting, setExporting] = useState(null)
   const [hover, setHover] = useState(null)
+  const [exportError, setExportError] = useState('')
 
   const fetchAll = useCallback(async () => {
     const params = {}
@@ -35,6 +36,7 @@ export default function ExportModal({ from, to, onClose }) {
 
   const exportExcel = useCallback(async () => {
     setExporting('excel')
+    setExportError('')
     try {
       const { summary, trends, peakHours, categories, riders } = await fetchAll()
       const wb = utils.book_new()
@@ -45,8 +47,8 @@ export default function ExportModal({ from, to, onClose }) {
       if (categories?.length) utils.bookAppendSheet(wb, utils.json_to_sheet(categories), 'Categories')
       if (riders?.length) utils.bookAppendSheet(wb, utils.json_to_sheet(riders), 'Rider Performance')
 
-      const data = write(wb, { bookType: 'xlsx', type: 'buffer' })
-      const blob = new Blob([data])
+      const data = write(wb, { bookType: 'xlsx', type: 'array' })
+      const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -55,9 +57,13 @@ export default function ExportModal({ from, to, onClose }) {
       a.click()
       document.body.removeChild(a)
       setTimeout(() => URL.revokeObjectURL(url), 100)
-    } catch (e) { console.error('Excel export error:', e) }
-    setExporting(null)
-    onClose()
+      setExporting(null)
+      onClose()
+    } catch (e) {
+      console.error('Excel export error:', e)
+      setExportError(e.message || 'Excel export failed')
+      setExporting(null)
+    }
   }, [fetchAll, onClose])
 
   const exportPDF = useCallback(async () => {
@@ -137,6 +143,7 @@ export default function ExportModal({ from, to, onClose }) {
   return (
     <Modal title={t('reports.exportReport')} onClose={onClose}>
       <p className="mb-5 text-sm text-[#A3AED0]">{t('reports.exportDesc')}</p>
+      {exportError && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500 mb-4">{exportError}</p>}
       <div className="flex flex-col gap-3">
         <button onClick={exportExcel} disabled={exporting !== null}
           onMouseEnter={() => setHover('excel')} onMouseLeave={() => setHover(null)}

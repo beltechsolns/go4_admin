@@ -1,13 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import Modal from '../../components/shared/Modal'
 import api from '../../api/client'
 
-export default function AddProductModal({ storeId, categories, onClose, onSaved }) {
+export default function AddProductModal({ storeId, categories, onClose, onSaved, initial }) {
   const { t } = useTranslation()
+  const isEdit = !!initial
   const [form, setForm]     = useState({ name: '', price: '', category_id: '', status: 'Active' })
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
+
+  useEffect(() => {
+    if (initial) setForm({ name: initial.name, price: String(initial.price), category_id: String(initial.category_id || ''), status: initial.status || 'Active' })
+    else setForm({ name: '', price: '', category_id: '', status: 'Active' })
+  }, [initial])
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
@@ -25,25 +31,36 @@ export default function AddProductModal({ storeId, categories, onClose, onSaved 
     setSaving(true)
     setError('')
     try {
-      await api.post(`/stores/${storeId}/products`, {
-        name: form.name,
-        price: Number(form.price),
-        status: form.status,
-        category_id: form.category_id || undefined,
-        category: selectedCat?.name || undefined,
-        emoji: selectedCat?.icon || '📦',
-      })
+      if (isEdit) {
+        await api.put(`/stores/${storeId}/products/${initial.id}`, {
+          name: form.name,
+          price: Number(form.price),
+          status: form.status,
+          category_id: form.category_id || undefined,
+          category: selectedCat?.name || undefined,
+          emoji: selectedCat?.icon || initial.emoji || '📦',
+        })
+      } else {
+        await api.post(`/stores/${storeId}/products`, {
+          name: form.name,
+          price: Number(form.price),
+          status: form.status,
+          category_id: form.category_id || undefined,
+          category: selectedCat?.name || undefined,
+          emoji: selectedCat?.icon || '📦',
+        })
+      }
       onSaved()
       onClose()
     } catch (err) {
-      setError(err.response?.data?.error || t('stores.failedToAdd'))
+      setError(err.response?.data?.error || (isEdit ? t('stores.failedToUpdate') : t('stores.failedToAdd')))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Modal title={t('stores.addProduct')} onClose={onClose}>
+    <Modal title={isEdit ? t('stores.editProduct') : t('stores.addProduct')} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p>}
 
@@ -62,6 +79,15 @@ export default function AddProductModal({ storeId, categories, onClose, onSaved 
         </div>
 
         <div>
+          <label className="mb-1 block text-xs font-semibold text-[#1B2559]">{t('stores.productStatus')}</label>
+          <select value={form.status} onChange={e => set('status', e.target.value)}
+            className="w-full rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm outline-none focus:border-[#F25C22]">
+            <option value="Active">{t('stores.active')}</option>
+            <option value="Inactive">{t('stores.inactive')}</option>
+          </select>
+        </div>
+
+        <div>
           <label className="mb-1 block text-xs font-semibold text-[#1B2559]">{t('stores.category')}</label>
           <select value={form.category_id} onChange={e => set('category_id', e.target.value)}
             className="w-full rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm outline-none focus:border-[#F25C22]">
@@ -77,7 +103,7 @@ export default function AddProductModal({ storeId, categories, onClose, onSaved 
           </button>
           <button type="submit" disabled={saving}
             className="rounded-xl bg-[#F25C22] px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors disabled:opacity-60">
-            {saving ? t('stores.adding') : t('stores.addProduct')}
+            {saving ? (isEdit ? t('stores.saving') : t('stores.adding')) : (isEdit ? t('stores.save') : t('stores.addProduct'))}
           </button>
         </div>
       </form>

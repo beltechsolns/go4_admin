@@ -20,6 +20,7 @@ export default function StoresListView({ onOpenStore }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('All')
   const [showAdd, setShowAdd] = useState(false)
+  const [editingStore, setEditingStore] = useState(null)
 
   const { data: stores, loading, remove, refetch } = useStores({ search, type: filter })
 
@@ -27,8 +28,12 @@ export default function StoresListView({ onOpenStore }) {
 
   return (
     <div className="space-y-6">
-      {showAdd && (
-        <AddStoreModal onClose={() => setShowAdd(false)} onSaved={refetch} />
+      {(showAdd || editingStore) && (
+        <AddStoreModal
+          initial={editingStore}
+          onClose={() => { setShowAdd(false); setEditingStore(null) }}
+          onSaved={refetch}
+        />
       )}
       <PageHeader
         title={t('stores.storeManagement')}
@@ -74,7 +79,7 @@ export default function StoresListView({ onOpenStore }) {
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="text-base font-bold text-[#1B2559]">{store.name}</h3>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button className="text-[#A3AED0] hover:text-[#1B2559] transition-colors"><Edit size={15} /></button>
+                      <button onClick={() => setEditingStore(store)} className="text-[#A3AED0] hover:text-[#1B2559] transition-colors"><Edit size={15} /></button>
                       <button onClick={() => remove(store.id)} className="text-[#A3AED0] hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
                     </div>
                   </div>

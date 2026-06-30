@@ -14,6 +14,8 @@ export default function StoreDetailView({ storeId, onBack }) {
   const [catFilter, setCatFilter]   = useState(t('stores.allCategories'))
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [showAddCategory, setShowAddCategory] = useState(false)
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [editingCategory, setEditingCategory] = useState(null)
 
   const { data: store } = useApi(() => api.get(`/stores/${storeId}`).then(r => r.data.data), [storeId])
   const { data: products, loading: pLoading, removeProduct, refetch: refetchProducts } =
@@ -118,7 +120,7 @@ export default function StoreDetailView({ storeId, onBack }) {
                           </td>
                           <td className="py-3.5">
                             <div className="flex items-center gap-3">
-                              <button className="text-[#A3AED0] hover:text-[#1B2559] transition-colors"><Edit size={15} /></button>
+                              <button onClick={() => setEditingProduct(p)} className="text-[#A3AED0] hover:text-[#1B2559] transition-colors"><Edit size={15} /></button>
                               <button onClick={() => removeProduct(p.id)} className="text-[#A3AED0] hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
                             </div>
                           </td>
@@ -143,7 +145,7 @@ export default function StoreDetailView({ storeId, onBack }) {
                     <div className="flex items-start justify-between">
                       <span className="text-4xl">{cat.icon}</span>
                       <div className="flex gap-2 text-[#A3AED0]">
-                        <button className="hover:text-[#1B2559] transition-colors"><Edit size={15} /></button>
+                        <button onClick={() => setEditingCategory(cat)} className="hover:text-[#1B2559] transition-colors"><Edit size={15} /></button>
                         <button onClick={() => removeCategory(cat.id)} className="hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
                       </div>
                     </div>
@@ -156,12 +158,12 @@ export default function StoreDetailView({ storeId, onBack }) {
         </div>
       )}
 
-      {showAddProduct &&
-        <AddProductModal storeId={storeId} categories={categories}
-          onClose={() => setShowAddProduct(false)} onSaved={refetchProducts} />}
-      {showAddCategory &&
-        <AddCategoryModal storeId={storeId}
-          onClose={() => setShowAddCategory(false)} onSaved={refetchCategories} />}
+      {(showAddProduct || editingProduct) &&
+        <AddProductModal storeId={storeId} categories={categories} initial={editingProduct}
+          onClose={() => { setShowAddProduct(false); setEditingProduct(null) }} onSaved={refetchProducts} />}
+      {(showAddCategory || editingCategory) &&
+        <AddCategoryModal storeId={storeId} initial={editingCategory}
+          onClose={() => { setShowAddCategory(false); setEditingCategory(null) }} onSaved={refetchCategories} />}
     </div>
   )
 }

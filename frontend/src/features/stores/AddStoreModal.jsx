@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import Modal from '../../components/shared/Modal'
 import api from '../../api/client'
@@ -6,11 +6,17 @@ import api from '../../api/client'
 const TYPES = ['Restaurant', 'Fast Food', 'Mini Market', 'Beverages', 'Cafe', 'Other']
 const EMPTY = { name: '', type: 'Restaurant', location: '', phone: '', image_url: '' }
 
-export default function AddStoreModal({ onClose, onSaved }) {
+export default function AddStoreModal({ onClose, onSaved, initial }) {
   const { t } = useTranslation()
+  const isEdit = !!initial
   const [form, setForm]     = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
+
+  useEffect(() => {
+    if (initial) setForm({ name: initial.name, type: initial.type, location: initial.location, phone: initial.phone, image_url: initial.image_url || '' })
+    else setForm(EMPTY)
+  }, [initial])
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
@@ -23,18 +29,22 @@ export default function AddStoreModal({ onClose, onSaved }) {
     setSaving(true)
     setError('')
     try {
-      await api.post('/stores', form)
+      if (isEdit) {
+        await api.put(`/stores/${initial.id}`, form)
+      } else {
+        await api.post('/stores', form)
+      }
       onSaved()
       onClose()
     } catch (err) {
-      setError(err.response?.data?.error || t('stores.failedToAdd'))
+      setError(err.response?.data?.error || (isEdit ? t('stores.failedToUpdate') : t('stores.failedToAdd')))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Modal title={t('stores.addStore')} onClose={onClose}>
+    <Modal title={isEdit ? t('stores.editStore') : t('stores.addStore')} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</p>}
 
@@ -81,7 +91,7 @@ export default function AddStoreModal({ onClose, onSaved }) {
           </button>
           <button type="submit" disabled={saving}
             className="rounded-xl bg-[#F25C22] px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors disabled:opacity-60">
-            {saving ? t('stores.adding') : t('stores.addStore')}
+            {saving ? (isEdit ? t('stores.saving') : t('stores.adding')) : (isEdit ? t('stores.save') : t('stores.addStore'))}
           </button>
         </div>
       </form>

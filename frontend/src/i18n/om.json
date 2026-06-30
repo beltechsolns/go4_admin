@@ -2,6 +2,7 @@
   "common": {
     "loading": "Fe'achaa jira...",
     "saving": "Olkaa'aa jira...",
+    "save": "Olkaayi",
     "saveChanges": "Jijjiiramoota Olkaayi",
     "cancel": "Haqi",
     "delete": "Haqi",
@@ -235,6 +236,8 @@
     "adding": "Dabaluu jira...",
     "nameRequired": "Maqaan suuqii barbaachisa.",
     "failedToAdd": "Suuqii dabaluu hin dandeenye.",
+    "failedToUpdate": "Suuqii haaromsuu hin dandeenye.",
+    "productStatus": "Haala",
     "imageUrlOptional": "URL suuraa (dirqamni hin jiru)",
     "validPriceRequired": "Maaloo gatii sirrii 0 ol ta'e galchi.",
     "noCategory": "Ramaddii hin jiru",

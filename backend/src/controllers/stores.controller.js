@@ -328,6 +328,34 @@ export const createCategory = async (req, res, next) => {
 };
 
 /**
+ * PUT /api/stores/:id/categories/:cid
+ */
+export const updateCategory = async (req, res, next) => {
+  try {
+    const { name, icon } = req.body;
+
+    const { rows } = await query(
+      `UPDATE categories
+       SET
+         name = COALESCE($1, name),
+         icon = COALESCE($2, icon),
+         updated_at = NOW()
+       WHERE id = $3 AND store_id = $4
+       RETURNING *`,
+      [name, icon, req.params.cid, req.params.id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ success: false, error: 'Category not found.' });
+    }
+
+    res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * DELETE /api/stores/:id/categories/:cid
  */
 export const removeCategory = async (req, res, next) => {
