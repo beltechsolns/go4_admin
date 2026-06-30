@@ -8,9 +8,9 @@ function rateColor(rate) {
   return 'bg-orange-100 text-orange-500'
 }
 
-export default function RiderPerformanceTable() {
+export default function RiderPerformanceTable({ from, to } = {}) {
   const { t } = useTranslation()
-  const { data: performers, loading } = useRiderPerformance()
+  const { data: performers, loading } = useRiderPerformance(from, to)
   const maxDeliveries = Math.max(...performers.map((p) => p.total_deliveries), 1)
 
   return (

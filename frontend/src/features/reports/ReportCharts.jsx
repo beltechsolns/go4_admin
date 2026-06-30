@@ -36,12 +36,12 @@ function Skeleton() {
   return <div className="h-44 rounded-xl bg-[#F4F7FE] animate-pulse" />
 }
 
-export default function ReportCharts() {
+export default function ReportCharts({ from, to } = {}) {
   const { t } = useTranslation()
-  const { data: trends,     loading: tL } = useDeliveryTrends()
-  const { data: peakHours,  loading: pL } = usePeakHours()
-  const { data: performers, loading: rL } = useRiderPerformance()
-  const { data: categories, loading: cL } = useOrdersByCategory()
+  const { data: trends,     loading: tL } = useDeliveryTrends(from, to)
+  const { data: peakHours,  loading: pL } = usePeakHours(from, to)
+  const { data: performers, loading: rL } = useRiderPerformance(from, to)
+  const { data: categories, loading: cL } = useOrdersByCategory(from, to)
 
   const tMax = Math.max(...trends.map(d => d.total), 1)
   const tStep = Math.ceil(tMax / 4) || 1

@@ -301,7 +301,9 @@
     "noOrderData": "Haataa dhaamsaa hin jiru",
     "noData": "Haataa hin jiru",
     "noDataYet": "Haataa hin jiru amma",
-    "noPerformanceData": "Haataa hojiitti hin jiru"
+    "noPerformanceData": "Haataa hojiitti hin jiru",
+    "from": "Irraa",
+    "to": "Hanga"
   },
   "pricing": {
     "title": "Gatii",

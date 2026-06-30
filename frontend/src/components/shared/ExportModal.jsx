@@ -7,21 +7,31 @@ import autoTable from 'jspdf-autotable'
 import api from '../../api/client'
 import Modal from './Modal'
 
-export default function ExportModal({ onClose }) {
+export default function ExportModal({ from, to, onClose }) {
   const { t } = useTranslation()
   const [exporting, setExporting] = useState(null)
   const [hover, setHover] = useState(null)
 
   const fetchAll = useCallback(async () => {
+    const params = {}
+    if (from) params.from = from
+    if (to) params.to = to
+    const opts = Object.keys(params).length ? { params } : {}
     const [summary, trends, peakHours, categories, riders] = await Promise.all([
-      api.get('/reports/summary').then(r => r.data.data),
-      api.get('/reports/trends').then(r => r.data.data),
-      api.get('/reports/peak-hours').then(r => r.data.data),
-      api.get('/reports/categories').then(r => r.data.data),
-      api.get('/reports/rider-performance').then(r => r.data.data),
+      api.get('/reports/summary', opts),
+      api.get('/reports/trends', opts),
+      api.get('/reports/peak-hours', opts),
+      api.get('/reports/categories', opts),
+      api.get('/reports/rider-performance', opts),
     ])
-    return { summary, trends, peakHours, categories, riders }
-  }, [])
+    return {
+      summary: summary.data.data,
+      trends: trends.data.data,
+      peakHours: peakHours.data.data,
+      categories: categories.data.data,
+      riders: riders.data.data,
+    }
+  }, [from, to])
 
   const exportExcel = useCallback(async () => {
     setExporting('excel')

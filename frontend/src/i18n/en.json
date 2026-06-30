@@ -301,7 +301,9 @@
     "noOrderData": "No order data yet",
     "noData": "No data",
     "noDataYet": "No data yet",
-    "noPerformanceData": "No performance data yet"
+    "noPerformanceData": "No performance data yet",
+    "from": "From",
+    "to": "To"
   },
   "pricing": {
     "title": "Pricing",

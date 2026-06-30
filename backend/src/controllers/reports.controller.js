@@ -1,11 +1,33 @@
 import { query } from '../config/db.js';
 
+function buildDateWhere(from, to, alias) {
+  const conditions = [];
+  const params = [];
+  let idx = 1;
+  const prefix = alias ? `${alias}.` : '';
+  if (from) {
+    conditions.push(`${prefix}created_at >= $${idx}`);
+    params.push(from);
+    idx++;
+  }
+  if (to) {
+    conditions.push(`${prefix}created_at <= $${idx}`);
+    params.push(to);
+    idx++;
+  }
+  return { conditions, params };
+}
+
 /**
  * GET /api/reports/trends
- * Last 7 days - total / completed / cancelled per day
+ * Supports ?from=&to= date range
  */
 export const getDeliveryTrends = async (req, res, next) => {
   try {
+    const { from, to } = req.query;
+    const { conditions, params } = buildDateWhere(from, to, '');
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const { rows } = await query(`
       SELECT
         TO_CHAR(DATE_TRUNC('day', created_at), 'Mon DD') AS label,
@@ -13,10 +35,10 @@ export const getDeliveryTrends = async (req, res, next) => {
         COUNT(*) FILTER (WHERE status = 'Delivered') AS completed,
         COUNT(*) FILTER (WHERE status IN ('Cancelled', 'Failed')) AS cancelled
       FROM deliveries
-      WHERE created_at >= NOW() - INTERVAL '7 days'
+      ${where}
       GROUP BY DATE_TRUNC('day', created_at)
       ORDER BY DATE_TRUNC('day', created_at)
-    `);
+    `, params);
 
     const data = rows.map(r => ({
       label: r.label,
@@ -33,23 +55,26 @@ export const getDeliveryTrends = async (req, res, next) => {
 
 /**
  * GET /api/reports/peak-hours
- * Count deliveries by hour of day
+ * Supports ?from=&to= date range
  */
 export const getPeakHours = async (req, res, next) => {
   try {
-    const { rows } = await query(`
+    const { from, to } = req.query;
+    const { conditions, params } = buildDateWhere(from, to, '');
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const dataRows = await query(`
       SELECT
         EXTRACT(HOUR FROM created_at)::INTEGER AS hour,
         COUNT(*) AS value
       FROM deliveries
-      WHERE created_at >= NOW() - INTERVAL '30 days'
+      ${where}
       GROUP BY EXTRACT(HOUR FROM created_at)
       ORDER BY hour
-    `);
+    `, params);
 
-    // Build full 24-hour array, filling zeros for missing hours
     const hourMap = {};
-    rows.forEach(r => {
+    dataRows.rows.forEach(r => {
       hourMap[r.hour] = parseInt(r.value);
     });
 
@@ -66,9 +91,14 @@ export const getPeakHours = async (req, res, next) => {
 
 /**
  * GET /api/reports/rider-performance
+ * Supports ?from=&to= date range
  */
 export const getRiderPerformance = async (req, res, next) => {
   try {
+    const { from, to } = req.query;
+    const { conditions, params } = buildDateWhere(from, to, 'd');
+    const joinOn = conditions.length ? `AND ${conditions.join(' AND ')}` : '';
+
     const { rows } = await query(`
       SELECT
         r.id,
@@ -85,13 +115,12 @@ export const getRiderPerformance = async (req, res, next) => {
           ELSE 0
         END AS success_rate
       FROM riders r
-      LEFT JOIN deliveries d ON d.rider_id = r.id
+      LEFT JOIN deliveries d ON d.rider_id = r.id ${joinOn}
       WHERE r.is_active = true
       GROUP BY r.id, r.full_name, r.vehicle_type, r.zone, r.rating
       ORDER BY total_deliveries DESC
-    `);
+    `, params);
 
-    // Fetch real avg delivery time per rider
     const timeRows = await query(`
       SELECT
         d.rider_id,
@@ -102,8 +131,9 @@ export const getRiderPerformance = async (req, res, next) => {
       WHERE d.status = 'Delivered'
         AND d.updated_at > d.created_at
         AND d.rider_id IS NOT NULL
+        ${from || to ? `AND d.created_at >= $1 AND d.created_at <= $2` : ''}
       GROUP BY d.rider_id
-    `);
+    `, from || to ? [from || '1970-01-01', to || '9999-12-31'] : []);
     const timeMap = {};
     timeRows.rows.forEach(r => { timeMap[r.rider_id] = parseInt(r.avg_minutes); });
 
@@ -128,19 +158,24 @@ export const getRiderPerformance = async (req, res, next) => {
 
 /**
  * GET /api/reports/categories
- * Orders grouped by store type (for pie chart)
+ * Orders grouped by store type (for pie chart) – supports ?from=&to=
  */
 export const getOrdersByCategory = async (req, res, next) => {
   try {
+    const { from, to } = req.query;
+    const { conditions, params } = buildDateWhere(from, to, 'd');
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const { rows } = await query(`
       SELECT
         COALESCE(s.type, 'Other') AS label,
         COUNT(d.id) AS value
       FROM deliveries d
       LEFT JOIN stores s ON d.store_id = s.id
+      ${where}
       GROUP BY COALESCE(s.type, 'Other')
       ORDER BY value DESC
-    `);
+    `, params);
 
     const colors = ['#F25C22', '#05CD99', '#3377FF', '#FFB800', '#A855F7', '#EC4899'];
     const total = rows.reduce((sum, r) => sum + parseInt(r.value), 0);

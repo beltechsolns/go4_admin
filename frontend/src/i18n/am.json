@@ -300,7 +300,9 @@
     "noOrderData": "እስካሁን ምንም የትዕዛዝ ውሂብ የለም",
     "noData": "ምንም ውሂብ የለም",
     "noDataYet": "እስካሁን ምንም ውሂብ የለም",
-    "noPerformanceData": "እስካሁን ምንም የአፈጻጸም ውሂብ የለም"
+    "noPerformanceData": "እስካሁን ምንም የአፈጻጸም ውሂብ የለም",
+    "from": "ከ",
+    "to": "እስከ"
   },
   "pricing": {
     "title": "ዋጋ አወጣጥ",
