@@ -1,5 +1,5 @@
-import { Calendar } from 'lucide-react'
-import { useState } from 'react'
+import { Calendar, Download } from 'lucide-react'
+import { Component, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ExportModal from '../components/shared/ExportModal'
 import PageHeader from '../components/shared/PageHeader'
@@ -14,8 +14,6 @@ function defaultFrom() {
 function defaultTo() {
   return new Date().toISOString().split('T')[0]
 }
-
-import { Component } from 'react'
 
 class ErrorBoundary extends Component {
   state = { error: null }
