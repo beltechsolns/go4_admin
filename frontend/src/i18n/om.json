@@ -25,7 +25,8 @@
     "next": "Itti aanu",
     "failedToLoad": "Daatan fe'uu hin dandeenye",
     "retry": "Itti deebi'ii yaali",
-    "reset": "Deebisi"
+    "reset": "Deebisi",
+    "required": "Dirree kana guutuun dirqama."
   },
   "auth": {
     "login": "Seenuu",
@@ -234,7 +235,10 @@
     "adding": "Dabaluu jira...",
     "nameRequired": "Maqaan suuqii barbaachisa.",
     "failedToAdd": "Suuqii dabaluu hin dandeenye.",
-    "imageUrlOptional": "URL suuraa (dirqamni hin jiru)"
+    "imageUrlOptional": "URL suuraa (dirqamni hin jiru)",
+    "validPriceRequired": "Maaloo gatii sirrii 0 ol ta'e galchi.",
+    "noCategory": "Ramaddii hin jiru",
+    "icon": "Akeekoo"
   },
   "liveTracking": {
     "title": "Hordoffii Yeroo Dhugaa",

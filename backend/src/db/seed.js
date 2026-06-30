@@ -86,6 +86,66 @@ async function seed() {
     }
     console.log(`✅ ${storeData.length} stores`);
 
+    // -- Categories & Products --
+    const productsByStore = {
+      'Pizza Palace': [
+        { cat: 'Pizzas', icon: '🍕', items: [['Margherita Pizza', 250], ['Pepperoni Pizza', 320], ['Hawaiian Pizza', 300], ['Vegetarian Pizza', 280]] },
+        { cat: 'Drinks', icon: '🥤', items: [['Coca Cola', 40], ['Sprite', 40], ['Mineral Water', 25]] },
+      ],
+      'Burger House': [
+        { cat: 'Burgers', icon: '🍔', items: [['Classic Burger', 180], ['Cheese Burger', 220], ['Chicken Burger', 200], ['Double Burger', 280]] },
+        { cat: 'Sides', icon: '🍟', items: [['French Fries', 60], ['Onion Rings', 70], ['Chicken Nuggets', 120]] },
+      ],
+      'Ethiopian Kitchen': [
+        { cat: 'Main Dishes', icon: '🍲', items: [['Doro Wat', 180], ['Kitfo', 200], ['Tibs', 160], ['Shiro', 120]] },
+        { cat: 'Drinks', icon: '☕', items: [['Ethiopian Coffee', 30], ['Tea', 20],['Fruit Juice', 50]] },
+      ],
+      'Shakiso Supermarket': [
+        { cat: 'Groceries', icon: '🛒', items: [['Rice 1kg', 80], ['Sugar 1kg', 55], ['Cooking Oil 1L', 120], ['Pasta 500g', 35]] },
+        { cat: 'Beverages', icon: '🧃', items: [['Milk 1L', 60], ['Juice Pack', 45], ['Water 1.5L', 25]] },
+      ],
+      'Fresh Juice Bar': [
+        { cat: 'Juices', icon: '🧃', items: [['Mango Juice', 70], ['Avocado Juice', 80], ['Mix Fruit Juice', 90], ['Orange Juice', 60]] },
+        { cat: 'Smoothies', icon: '🥤', items: [['Berry Smoothie', 100], ['Banana Smoothie', 85], ['Green Smoothie', 95]] },
+      ],
+      'Coffee & Bakery': [
+        { cat: 'Coffee', icon: '☕', items: [['Espresso', 35], ['Cappuccino', 50], ['Latte', 55], ['Americano', 40]] },
+        { cat: 'Pastries', icon: '🥐', items: [['Croissant', 45], ['Donut', 35], ['Muffin', 40], ['Bagel', 50]] },
+      ],
+      'Tasty Bites': [
+        { cat: 'Snacks', icon: '🥨', items: [['Samosa', 25], ['Spring Roll', 30], ['Puff Pastry', 35], ['Sandwich', 60]] },
+      ],
+      'Green Grocers': [
+        { cat: 'Fruits', icon: '🍎', items: [['Apple 1kg', 120], ['Banana bunch', 60], ['Orange 1kg', 100], ['Grapes 1kg', 150]] },
+        { cat: 'Vegetables', icon: '🥬', items: [['Tomato 1kg', 50], ['Onion 1kg', 40], ['Potato 1kg', 35], ['Lettuce', 30]] },
+      ],
+    };
+
+    let productCount = 0;
+    for (const [storeName, categories] of Object.entries(productsByStore)) {
+      const storeRes = await client.query(`SELECT id FROM stores WHERE name = $1`, [storeName]);
+      const storeId = storeRes.rows[0]?.id;
+      if (!storeId) continue;
+
+      for (const cat of categories) {
+        const catRes = await client.query(
+          `INSERT INTO categories (store_id, name, icon) VALUES ($1, $2, $3) RETURNING id`,
+          [storeId, cat.cat, cat.icon]
+        );
+        const catId = catRes.rows[0].id;
+
+        for (const [name, price] of cat.items) {
+          await client.query(
+            `INSERT INTO products (store_id, category_id, name, category, price, emoji, status)
+             VALUES ($1, $2, $3, $4, $5, $6, 'Active')`,
+            [storeId, catId, name, cat.cat, price, cat.icon]
+          );
+          productCount++;
+        }
+      }
+    }
+    console.log(`✅ ${productCount} products`);
+
     // -- Deliveries (last 30 days) --
     const statuses = ['Pending', 'Accepted', 'Picked Up', 'In Transit', 'Delivered', 'Cancelled'];
     const riderIds = Array.from({ length: 10 }, (_, i) => i + 1);

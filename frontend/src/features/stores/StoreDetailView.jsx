@@ -4,17 +4,21 @@ import { useTranslation } from 'react-i18next'
 import { useStoreCategories, useStoreProducts } from '../../hooks/useStores'
 import useApi from '../../hooks/useApi'
 import api from '../../api/client'
+import AddProductModal from './AddProductModal'
+import AddCategoryModal from './AddCategoryModal'
 
 export default function StoreDetailView({ storeId, onBack }) {
   const { t } = useTranslation()
-  const [subTab, setSubTab]     = useState('products')
-  const [search, setSearch]     = useState('')
-  const [catFilter, setCatFilter] = useState(t('stores.allCategories'))
+  const [subTab, setSubTab]       = useState('products')
+  const [search, setSearch]       = useState('')
+  const [catFilter, setCatFilter]   = useState(t('stores.allCategories'))
+  const [showAddProduct, setShowAddProduct] = useState(false)
+  const [showAddCategory, setShowAddCategory] = useState(false)
 
   const { data: store } = useApi(() => api.get(`/stores/${storeId}`).then(r => r.data.data), [storeId])
-  const { data: products, loading: pLoading, removeProduct } =
+  const { data: products, loading: pLoading, removeProduct, refetch: refetchProducts } =
     useStoreProducts(storeId, { search, category: catFilter })
-  const { data: categories, loading: cLoading, removeCategory } =
+  const { data: categories, loading: cLoading, removeCategory, refetch: refetchCategories } =
     useStoreCategories(storeId)
 
   const allCat = t('stores.allCategories')
@@ -78,7 +82,8 @@ export default function StoreDetailView({ storeId, onBack }) {
               className="rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm font-medium text-[#1B2559] outline-none focus:border-[#F25C22]">
               {productCategories.map((c) => <option key={c}>{c}</option>)}
             </select>
-            <button className="flex items-center gap-2 rounded-xl bg-[#F25C22] px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors shrink-0">
+            <button onClick={() => setShowAddProduct(true)}
+              className="flex items-center gap-2 rounded-xl bg-[#F25C22] px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors shrink-0">
               <Plus size={15} /> {t('stores.addProduct')}
             </button>
           </div>
@@ -126,7 +131,8 @@ export default function StoreDetailView({ storeId, onBack }) {
         </div>
       ) : (
         <div className="rounded-2xl border border-[#E0E5F2] bg-white p-5 shadow-sm space-y-5">
-          <button className="flex items-center gap-2 rounded-xl bg-[#F25C22] px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors">
+          <button onClick={() => setShowAddCategory(true)}
+            className="flex items-center gap-2 rounded-xl bg-[#F25C22] px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors">
             <Plus size={15} /> {t('stores.addCategory')}
           </button>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -149,6 +155,13 @@ export default function StoreDetailView({ storeId, onBack }) {
           </div>
         </div>
       )}
+
+      {showAddProduct &&
+        <AddProductModal storeId={storeId} categories={categories}
+          onClose={() => setShowAddProduct(false)} onSaved={refetchProducts} />}
+      {showAddCategory &&
+        <AddCategoryModal storeId={storeId}
+          onClose={() => setShowAddCategory(false)} onSaved={refetchCategories} />}
     </div>
   )
 }

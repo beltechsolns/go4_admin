@@ -25,7 +25,8 @@
     "next": "ቀጣይ",
     "failedToLoad": "ውሂብ መጫን አልተሳካም",
     "retry": "እንደገና ሞክር",
-    "reset": "ዳግም አስጀምር"
+    "reset": "ዳግም አስጀምር",
+    "required": "ይህ መስክ ያስፈልጋል።"
   },
   "auth": {
     "login": "ግባ",
@@ -233,7 +234,10 @@
     "adding": "በማከል ላይ...",
     "nameRequired": "የመደብር ስም ያስፈልጋል።",
     "failedToAdd": "መደብር ማከል አልተሳካም።",
-    "imageUrlOptional": "የምስል ዩአርኤል (አማራጭ)"
+    "imageUrlOptional": "የምስል ዩአርኤል (አማራጭ)",
+    "validPriceRequired": "እባክዎ ከ0 በላይ የሆነ ትክክለኛ ዋጋ ያስገቡ።",
+    "noCategory": "ምድብ የለም",
+    "icon": "አዶ"
   },
   "liveTracking": {
     "title": "የቀጥታ ክትትል",

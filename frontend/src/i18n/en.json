@@ -25,7 +25,8 @@
     "next": "Next",
     "failedToLoad": "Failed to load data",
     "retry": "Retry",
-    "reset": "Reset"
+    "reset": "Reset",
+    "required": "This field is required."
   },
   "auth": {
     "login": "Login",
@@ -234,7 +235,10 @@
     "adding": "Adding...",
     "nameRequired": "Store name is required.",
     "failedToAdd": "Failed to add store.",
-    "imageUrlOptional": "Image URL (optional)"
+    "imageUrlOptional": "Image URL (optional)",
+    "validPriceRequired": "Please enter a valid price greater than 0.",
+    "noCategory": "No category",
+    "icon": "Icon"
   },
   "liveTracking": {
     "title": "Live Tracking",
