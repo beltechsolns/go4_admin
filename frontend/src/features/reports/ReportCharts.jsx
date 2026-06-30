@@ -88,9 +88,11 @@ export default function ReportCharts({ from, to } = {}) {
               {trends.map((d, i) => (
                 <circle key={i} cx={tX(i)} cy={tY(d.total)} r="3" fill="white" stroke="#F25C22" strokeWidth="2" />
               ))}
-              {trends.map((d, i) => (
-                <text key={i} x={tX(i)} y={TH - 6} textAnchor="middle" fontSize="10" fill="#999">{d.label}</text>
-              ))}
+              {trends.map((d, i) => {
+                const skip = trends.length > 10 ? Math.ceil(trends.length / 8) : 1
+                if (i % skip !== 0 && i !== trends.length - 1) return null
+                return <text key={i} x={tX(i)} y={TH - 6} textAnchor="middle" fontSize="10" fill="#999">{d.label}</text>
+              })}
             </svg>
             <div className="mt-2 flex items-center gap-4 text-xs font-medium text-[#64748b]">
               <span className="flex items-center gap-1"><span className="h-2.5 w-5 rounded bg-[#F25C22] inline-block" /> {t('reports.total')}</span>
