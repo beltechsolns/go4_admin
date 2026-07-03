@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
 import { pool } from './src/config/db.js';
@@ -15,6 +17,7 @@ import reportsRoutes from './src/routes/reports.routes.js';
 import pricingRoutes from './src/routes/pricing.routes.js';
 import settingsRoutes from './src/routes/settings.routes.js';
 import trackingRoutes from './src/routes/tracking.routes.js';
+import customerRoutes from './src/routes/customer.routes.js';
 
 dotenv.config();
 
@@ -30,6 +33,12 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Static files for uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -47,6 +56,9 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/pricing', pricingRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/tracking', trackingRoutes);
+
+// Customer-facing API (merged from Flutter app backend)
+app.use('/api/v1', customerRoutes);
 
 // 404 handler
 app.use((req, res) => {
