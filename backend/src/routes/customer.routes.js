@@ -97,6 +97,7 @@ router.put('/notifications/:id/read', customerAuth, notifications.markAsRead);
 router.get('/restaurants', restaurants.getRestaurants);
 router.get('/restaurants/:id', restaurants.getRestaurantByID);
 router.get('/restaurants/:id/products', restaurants.getRestaurantProducts);
+router.put('/restaurants/:id/image', customerAuth, restaurants.updateRestaurantImage);
 router.post('/restaurants/:id/rate', customerAuth, restaurants.rateRestaurant);
 
 // Rider

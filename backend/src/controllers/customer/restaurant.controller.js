@@ -38,6 +38,18 @@ export const getRestaurantProducts = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+export const updateRestaurantImage = async (req, res, next) => {
+  try {
+    const { image_url } = req.body;
+    const { rows } = await query(
+      `UPDATE stores SET image_url = $1 WHERE id = $2 RETURNING id, name, image_url`,
+      [image_url, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, message: 'Restaurant not found' });
+    res.json({ success: true, data: rows[0] });
+  } catch (err) { next(err); }
+};
+
 export const rateRestaurant = async (req, res, next) => {
   try {
     const { rating } = req.body;
