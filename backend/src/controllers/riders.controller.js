@@ -72,17 +72,27 @@ export const getOne = async (req, res, next) => {
  */
 export const create = async (req, res, next) => {
   try {
-    const { full_name, phone, vehicle_type, zone, status } = req.body;
+    const { full_name, phone, email, vehicle_type, zone, status } = req.body;
 
     if (!full_name || !phone) {
       return res.status(400).json({ success: false, error: 'full_name and phone are required.' });
     }
 
+    if (email) {
+      const [existingUser, existingRider, existingAdmin] = await Promise.all([
+        query('SELECT id FROM users WHERE email = $1', [email]),
+        query('SELECT id FROM riders WHERE email = $1', [email]),
+        query('SELECT id FROM admins WHERE email = $1', [email]),
+      ]);
+      if (existingUser.rows.length || existingRider.rows.length || existingAdmin.rows.length)
+        return res.status(409).json({ success: false, error: 'Email already in use by another user.' });
+    }
+
     const { rows } = await query(
-      `INSERT INTO riders (full_name, phone, vehicle_type, zone, status)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO riders (full_name, phone, email, vehicle_type, zone, status)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [full_name, phone, vehicle_type || 'Bike', zone || null, status || 'Offline']
+      [full_name, phone, email || null, vehicle_type || 'Bike', zone || null, status || 'Offline']
     );
 
     res.status(201).json({ success: true, data: rows[0] });
@@ -96,22 +106,33 @@ export const create = async (req, res, next) => {
  */
 export const update = async (req, res, next) => {
   try {
-    const { full_name, phone, vehicle_type, zone, status, rating, total_deliveries } = req.body;
+    const { full_name, phone, email, vehicle_type, zone, status, rating, total_deliveries } = req.body;
+
+    if (email) {
+      const [existingUser, existingRider, existingAdmin] = await Promise.all([
+        query('SELECT id FROM users WHERE email = $1', [email]),
+        query('SELECT id FROM riders WHERE email = $1 AND id != $2', [email, req.params.id]),
+        query('SELECT id FROM admins WHERE email = $1', [email]),
+      ]);
+      if (existingUser.rows.length || existingRider.rows.length || existingAdmin.rows.length)
+        return res.status(409).json({ success: false, error: 'Email already in use by another user.' });
+    }
 
     const { rows } = await query(
       `UPDATE riders
        SET
          full_name = COALESCE($1, full_name),
          phone = COALESCE($2, phone),
-         vehicle_type = COALESCE($3, vehicle_type),
-         zone = COALESCE($4, zone),
-         status = COALESCE($5, status),
-         rating = COALESCE($6, rating),
-         total_deliveries = COALESCE($7, total_deliveries),
+         email = COALESCE($3, email),
+         vehicle_type = COALESCE($4, vehicle_type),
+         zone = COALESCE($5, zone),
+         status = COALESCE($6, status),
+         rating = COALESCE($7, rating),
+         total_deliveries = COALESCE($8, total_deliveries),
          updated_at = NOW()
-       WHERE id = $8 AND is_active = true
+       WHERE id = $9 AND is_active = true
        RETURNING *`,
-      [full_name, phone, vehicle_type, zone, status, rating, total_deliveries, req.params.id]
+      [full_name, phone, email, vehicle_type, zone, status, rating, total_deliveries, req.params.id]
     );
 
     if (!rows.length) {

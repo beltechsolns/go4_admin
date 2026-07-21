@@ -1,0 +1,3 @@
+ALTER TABLE riders ADD COLUMN IF NOT EXISTS email VARCHAR(150) UNIQUE;
+
+CREATE INDEX IF NOT EXISTS idx_riders_email ON riders(email);

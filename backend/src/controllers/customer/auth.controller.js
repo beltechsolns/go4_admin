@@ -12,8 +12,13 @@ export const register = async (req, res, next) => {
     if (!name || !email || !phone || !password)
       return res.status(400).json({ success: false, message: 'Missing required fields' });
 
-    const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existing.rows.length)
+    // Check email across all user types
+    const [existingUser, existingRider, existingAdmin] = await Promise.all([
+      query('SELECT id FROM users WHERE email = $1', [email]),
+      query('SELECT id FROM riders WHERE email = $1', [email]),
+      query('SELECT id FROM admins WHERE email = $1', [email]),
+    ]);
+    if (existingUser.rows.length || existingRider.rows.length || existingAdmin.rows.length)
       return res.status(409).json({ success: false, message: 'Email already registered' });
 
     const hash = await bcrypt.hash(password, 10);
