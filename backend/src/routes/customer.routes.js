@@ -72,6 +72,7 @@ router.put('/orders/:id/cancel', customerAuth, orders.cancelOrder);
 router.get('/profile', customerAuth, profile.getProfile);
 router.put('/profile', customerAuth, profile.updateProfile);
 router.post('/profile/avatar', customerAuth, upload.single('avatar'), profile.uploadAvatar);
+router.put('/profile/avatar-url', customerAuth, profile.setAvatarUrl);
 
 // Favorites
 router.get('/favorites', customerAuth, favorites.getFavorites);
