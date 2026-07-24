@@ -12,6 +12,7 @@ import * as notifications from '../controllers/customer/notification.controller.
 import * as profile from '../controllers/customer/profile.controller.js';
 import * as rider from '../controllers/customer/rider.controller.js';
 import * as restaurants from '../controllers/customer/restaurant.controller.js';
+import * as social from '../controllers/customer/social.controller.js';
 
 const router = Router();
 
@@ -37,6 +38,8 @@ router.post('/auth/refresh', customerAuth, auth.refreshToken);
 router.post('/auth/logout', customerAuth, auth.logout);
 router.post('/auth/forgot-password', auth.forgotPassword);
 router.post('/auth/reset-password', auth.resetPassword);
+router.post('/auth/google', social.googleLogin);
+router.post('/auth/facebook', social.facebookLogin);
 
 // Products
 router.get('/products/categories', products.getCategories);
