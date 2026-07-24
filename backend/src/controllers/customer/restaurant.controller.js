@@ -31,7 +31,10 @@ export const getRestaurantByID = async (req, res, next) => {
 export const getRestaurantProducts = async (req, res, next) => {
   try {
     const { rows } = await query(
-      'SELECT * FROM products WHERE store_id = $1 AND available = true ORDER BY created_at DESC',
+      `SELECT p.*,
+        COALESCE((SELECT ROUND(AVG(pr.rating), 1) FROM product_ratings pr WHERE pr.product_id = p.id), 0) AS rating,
+        COALESCE((SELECT COUNT(*) FROM product_ratings pr WHERE pr.product_id = p.id), 0) AS reviews_count
+       FROM products p WHERE p.store_id = $1 AND p.available = true ORDER BY p.created_at DESC`,
       [req.params.id]
     );
     res.json({ success: true, data: rows });

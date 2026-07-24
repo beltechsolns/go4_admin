@@ -43,6 +43,8 @@ router.get('/products/categories', products.getCategories);
 router.get('/products/categories/:id', products.getCategoryByID);
 router.get('/products', products.getProducts);
 router.get('/products/:id', products.getProductByID);
+router.get('/products/:id/ratings', products.getProductRatings);
+router.post('/products/:id/rate', customerAuth, products.rateProduct);
 router.post('/products', customerAuth, upload.single('image'), products.createProduct);
 router.post('/products/:id/image', customerAuth, upload.single('image'), products.uploadProductImage);
 router.patch('/products/:id/special-offer', customerAuth, products.toggleSpecialOffer);

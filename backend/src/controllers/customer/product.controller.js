@@ -2,14 +2,25 @@ import { query } from '../../config/db.js';
 
 export const getCategories = async (req, res, next) => {
   try {
-    const { rows } = await query('SELECT * FROM product_categories ORDER BY name');
+    const { store_id } = req.query;
+    let sql = 'SELECT c.*, s.name AS store_name FROM categories c LEFT JOIN stores s ON s.id = c.store_id';
+    const params = [];
+    if (store_id) {
+      sql += ' WHERE c.store_id = $1';
+      params.push(store_id);
+    }
+    sql += ' ORDER BY c.name';
+    const { rows } = await query(sql, params);
     res.json({ success: true, data: rows });
   } catch (err) { next(err); }
 };
 
 export const getCategoryByID = async (req, res, next) => {
   try {
-    const { rows } = await query('SELECT * FROM product_categories WHERE id = $1', [req.params.id]);
+    const { rows } = await query(
+      'SELECT c.*, s.name AS store_name FROM categories c LEFT JOIN stores s ON s.id = c.store_id WHERE c.id = $1',
+      [req.params.id]
+    );
     if (!rows.length) return res.status(404).json({ success: false, message: 'Category not found' });
     res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
@@ -40,7 +51,10 @@ export const getProducts = async (req, res, next) => {
     const total = parseInt(count.rows[0].total);
 
     const { rows } = await query(
-      'SELECT p.*, s.name AS store_name FROM products p LEFT JOIN stores s ON s.id = p.store_id ' + where + ' ORDER BY p.created_at DESC LIMIT $' + idx + ' OFFSET $' + (idx + 1),
+      `SELECT p.*, s.name AS store_name,
+        COALESCE((SELECT ROUND(AVG(pr.rating), 1) FROM product_ratings pr WHERE pr.product_id = p.id), 0) AS rating,
+        COALESCE((SELECT COUNT(*) FROM product_ratings pr WHERE pr.product_id = p.id), 0) AS reviews_count
+       FROM products p LEFT JOIN stores s ON s.id = p.store_id ` + where + ' ORDER BY p.created_at DESC LIMIT $' + idx + ' OFFSET $' + (idx + 1),
       [...params, parseInt(limit), offset]
     );
 
@@ -55,7 +69,10 @@ export const getProducts = async (req, res, next) => {
 export const getProductByID = async (req, res, next) => {
   try {
     const { rows } = await query(
-      'SELECT p.*, s.name AS store_name FROM products p LEFT JOIN stores s ON s.id = p.store_id WHERE p.id = $1',
+      `SELECT p.*, s.name AS store_name,
+        COALESCE((SELECT ROUND(AVG(pr.rating), 1) FROM product_ratings pr WHERE pr.product_id = p.id), 0) AS rating,
+        COALESCE((SELECT COUNT(*) FROM product_ratings pr WHERE pr.product_id = p.id), 0) AS reviews_count
+       FROM products p LEFT JOIN stores s ON s.id = p.store_id WHERE p.id = $1`,
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ success: false, message: 'Product not found' });
@@ -72,7 +89,10 @@ export const getSpecialOffers = async (req, res, next) => {
     const total = parseInt(count.rows[0].total);
 
     const { rows } = await query(
-      'SELECT p.*, s.name AS store_name FROM products p LEFT JOIN stores s ON s.id = p.store_id WHERE p.is_special_offer = true AND p.available = true ORDER BY p.created_at DESC LIMIT $1 OFFSET $2',
+      `SELECT p.*, s.name AS store_name,
+        COALESCE((SELECT ROUND(AVG(pr.rating), 1) FROM product_ratings pr WHERE pr.product_id = p.id), 0) AS rating,
+        COALESCE((SELECT COUNT(*) FROM product_ratings pr WHERE pr.product_id = p.id), 0) AS reviews_count
+       FROM products p LEFT JOIN stores s ON s.id = p.store_id WHERE p.is_special_offer = true AND p.available = true ORDER BY p.created_at DESC LIMIT $1 OFFSET $2`,
       [parseInt(limit), offset]
     );
 
@@ -126,5 +146,57 @@ export const toggleSpecialOffer = async (req, res, next) => {
     );
     if (!rows.length) return res.status(404).json({ success: false, message: 'Product not found' });
     res.json({ success: true, data: rows[0] });
+  } catch (err) { next(err); }
+};
+
+export const getProductRatings = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const { rows } = await query(
+      `SELECT pr.*, u.name AS user_name, u.avatar AS user_avatar
+       FROM product_ratings pr LEFT JOIN users u ON u.id = pr.user_id
+       WHERE pr.product_id = $1 ORDER BY pr.created_at DESC LIMIT $2 OFFSET $3`,
+      [req.params.id, parseInt(limit), offset]
+    );
+
+    const count = await query('SELECT COUNT(*) AS total FROM product_ratings WHERE product_id = $1', [req.params.id]);
+    const total = parseInt(count.rows[0].total);
+
+    res.json({
+      success: true,
+      data: rows,
+      pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) },
+    });
+  } catch (err) { next(err); }
+};
+
+export const rateProduct = async (req, res, next) => {
+  try {
+    const { rating, review } = req.body;
+    if (!rating || rating < 1 || rating > 5)
+      return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+
+    const product = await query('SELECT id FROM products WHERE id = $1', [req.params.id]);
+    if (!product.rows.length) return res.status(404).json({ success: false, message: 'Product not found' });
+
+    const { rows } = await query(
+      `INSERT INTO product_ratings (product_id, user_id, rating, review) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (product_id, user_id) DO UPDATE SET rating = EXCLUDED.rating, review = EXCLUDED.review
+       RETURNING *`,
+      [req.params.id, req.user.id, rating, review || null]
+    );
+
+    const avg = await query('SELECT ROUND(AVG(rating), 1) AS avg_rating, COUNT(*) AS count FROM product_ratings WHERE product_id = $1', [req.params.id]);
+
+    res.json({
+      success: true,
+      data: {
+        rating: rows[0],
+        average_rating: parseFloat(avg.rows[0].avg_rating),
+        reviews_count: parseInt(avg.rows[0].count),
+      },
+    });
   } catch (err) { next(err); }
 };
