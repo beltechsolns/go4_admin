@@ -1,4 +1,5 @@
 import { query } from '../../config/db.js';
+import { fixImages, fixItemImages } from '../../helpers/imageHelper.js';
 
 export const getRestaurants = async (req, res, next) => {
   try {
@@ -10,7 +11,7 @@ export const getRestaurants = async (req, res, next) => {
       WHERE s.is_active = true
       ORDER BY s.name
     `);
-    res.json({ success: true, data: rows });
+    res.json({ success: true, data: fixImages(rows) });
   } catch (err) { next(err); }
 };
 
@@ -24,7 +25,7 @@ export const getRestaurantByID = async (req, res, next) => {
       WHERE s.id = $1 AND s.is_active = true
     `, [req.params.id]);
     if (!rows.length) return res.status(404).json({ success: false, message: 'Restaurant not found' });
-    res.json({ success: true, data: rows[0] });
+    res.json({ success: true, data: fixItemImages(rows[0]) });
   } catch (err) { next(err); }
 };
 
@@ -37,7 +38,7 @@ export const getRestaurantProducts = async (req, res, next) => {
        FROM products p WHERE p.store_id = $1 AND p.available = true ORDER BY p.created_at DESC`,
       [req.params.id]
     );
-    res.json({ success: true, data: rows });
+    res.json({ success: true, data: fixImages(rows) });
   } catch (err) { next(err); }
 };
 
@@ -49,7 +50,7 @@ export const updateRestaurantImage = async (req, res, next) => {
       [image_url, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ success: false, message: 'Restaurant not found' });
-    res.json({ success: true, data: rows[0] });
+    res.json({ success: true, data: fixItemImages(rows[0]) });
   } catch (err) { next(err); }
 };
 

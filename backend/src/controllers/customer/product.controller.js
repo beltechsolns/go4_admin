@@ -1,4 +1,5 @@
 import { query } from '../../config/db.js';
+import { fixImages, fixItemImages } from '../../helpers/imageHelper.js';
 
 export const getCategories = async (req, res, next) => {
   try {
@@ -60,7 +61,7 @@ export const getProducts = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: rows,
+      data: fixImages(rows),
       pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) },
     });
   } catch (err) { next(err); }
@@ -76,7 +77,7 @@ export const getProductByID = async (req, res, next) => {
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ success: false, message: 'Product not found' });
-    res.json({ success: true, data: rows[0] });
+    res.json({ success: true, data: fixItemImages(rows[0]) });
   } catch (err) { next(err); }
 };
 
@@ -98,7 +99,7 @@ export const getSpecialOffers = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: rows,
+      data: fixImages(rows),
       pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) },
     });
   } catch (err) { next(err); }
@@ -122,7 +123,7 @@ export const createProduct = async (req, res, next) => {
       [restaurant_id || null, category_id || null, name, description || null, parseFloat(price), discount_price || null, image, is_special_offer || false]
     );
 
-    res.status(201).json({ success: true, data: rows[0] });
+    res.status(201).json({ success: true, data: fixItemImages(rows[0]) });
   } catch (err) { next(err); }
 };
 
@@ -134,7 +135,7 @@ export const uploadProductImage = async (req, res, next) => {
     const { rows } = await query('UPDATE products SET image = $1, updated_at = NOW() WHERE id = $2 RETURNING *', [imagePath, req.params.id]);
 
     if (!rows.length) return res.status(404).json({ success: false, message: 'Product not found' });
-    res.json({ success: true, data: rows[0] });
+    res.json({ success: true, data: fixItemImages(rows[0]) });
   } catch (err) { next(err); }
 };
 
@@ -166,7 +167,7 @@ export const getProductRatings = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: rows,
+      data: fixImages(rows),
       pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) },
     });
   } catch (err) { next(err); }
