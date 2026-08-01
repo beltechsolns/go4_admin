@@ -1,8 +1,10 @@
 import { query } from '../../config/db.js';
+import { haversineKm, computeEtaMinutes, hasArrived } from '../../helpers/geoHelper.js';
+import { fixItemImages } from '../../helpers/imageHelper.js';
 
 export const createOrder = async (req, res, next) => {
   try {
-    const { items, delivery_address, notes, pickup_address } = req.body;
+    const { items, delivery_address, notes, pickup_address, delivery_lat, delivery_lng } = req.body;
     if (!items || !items.length)
       return res.status(400).json({ success: false, message: 'Items required' });
     if (!delivery_address)
@@ -34,8 +36,8 @@ export const createOrder = async (req, res, next) => {
     const totalPrice = items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity || 1), 0);
 
     const { rows: [order] } = await query(
-      'INSERT INTO customer_orders (user_id, store_id, order_name, user_name, total_price, delivery_address, pickup_address, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-      [req.user.id, storeId, orderName, user[0].name, totalPrice, delivery_address, resolvedPickup, notes || '']
+      'INSERT INTO customer_orders (user_id, store_id, order_name, user_name, total_price, delivery_address, pickup_address, delivery_lat, delivery_lng, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+      [req.user.id, storeId, orderName, user[0].name, totalPrice, delivery_address, resolvedPickup, delivery_lat || null, delivery_lng || null, notes || '']
     );
 
     for (const item of items) {
@@ -53,7 +55,7 @@ export const createOrder = async (req, res, next) => {
       'SELECT oi.*, p.name AS product_name, p.image AS product_image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = $1',
       [order.id]
     );
-    fullOrder.items = orderItems;
+    fullOrder.items = fixItemImages(orderItems);
 
     fullOrder.orderName = fullOrder.order_name;
 
@@ -111,7 +113,7 @@ export const getOrderByID = async (req, res, next) => {
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
     const { rows: items } = await query('SELECT oi.*, p.name AS product_name, p.image AS product_image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = $1', [order.id]);
-    order.items = items;
+    order.items = fixItemImages(items);
     order.orderName = order.order_name;
 
     res.json({ success: true, data: order });
@@ -199,6 +201,123 @@ export const getDeliveredOrders = async (req, res, next) => {
       success: true,
       data: orders,
       pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) },
+    });
+  } catch (err) { next(err); }
+};
+
+export const trackOrder = async (req, res, next) => {
+  try {
+    const { rows: [order] } = await query(
+      'SELECT * FROM customer_orders WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    order.orderName = order.order_name;
+
+    // Rider live location
+    let rider = null;
+    if (order.rider_id) {
+      const { rows: [r] } = await query(
+        'SELECT id, full_name, phone, vehicle_type, status, current_lat, current_lng FROM riders WHERE id = $1',
+        [order.rider_id]
+      );
+      rider = r || null;
+    }
+
+    // Distance & ETA from rider to delivery point
+    let distance_km = null;
+    let eta_minutes = null;
+    let arrived = false;
+
+    if (rider && order.delivery_lat && order.delivery_lng) {
+      if (rider.current_lat != null && rider.current_lng != null) {
+        distance_km = haversineKm(
+          parseFloat(rider.current_lat),
+          parseFloat(rider.current_lng),
+          parseFloat(order.delivery_lat),
+          parseFloat(order.delivery_lng)
+        );
+        eta_minutes = computeEtaMinutes(distance_km);
+        arrived = hasArrived(distance_km);
+      }
+    }
+
+    const { rows: items } = await query(
+      'SELECT oi.*, p.name AS product_name, p.image AS product_image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = $1',
+      [order.id]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        order: {
+          id: order.id,
+          orderName: order.order_name,
+          status: order.status,
+          created_at: order.created_at,
+          delivery_address: order.delivery_address,
+          total_price: order.total_price,
+          items: fixItemImages(items),
+        },
+        rider: rider ? {
+          id: rider.id,
+          name: rider.full_name,
+          phone: rider.phone,
+          vehicle_type: rider.vehicle_type,
+          status: rider.status,
+          current_lat: rider.current_lat,
+          current_lng: rider.current_lng,
+        } : null,
+        delivery: {
+          delivery_lat: order.delivery_lat,
+          delivery_lng: order.delivery_lng,
+        },
+        tracking: {
+          distance_km: distance_km ? parseFloat(distance_km.toFixed(2)) : null,
+          eta_minutes,
+          arrived,
+          message: !rider
+            ? 'Waiting for a rider to accept the order'
+            : arrived
+              ? 'Rider has arrived at your location'
+              : `Rider is ${eta_minutes} minutes away`,
+        },
+      },
+    });
+  } catch (err) { next(err); }
+};
+
+export const rateDriver = async (req, res, next) => {
+  try {
+    const { rating, review } = req.body;
+    if (!rating || rating < 1 || rating > 5)
+      return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+
+    const { rows: [order] } = await query(
+      'SELECT * FROM customer_orders WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (!order.rider_id) return res.status(400).json({ success: false, message: 'No rider assigned to this order yet' });
+    if (order.status !== 'delivered') return res.status(400).json({ success: false, message: 'Order must be delivered before rating the driver' });
+
+    const { rows } = await query(
+      `INSERT INTO driver_ratings (rider_id, user_id, order_id, rating, review) VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (order_id, user_id) DO UPDATE SET rating = EXCLUDED.rating, review = EXCLUDED.review
+       RETURNING *`,
+      [order.rider_id, req.user.id, order.id, rating, review || null]
+    );
+
+    const avg = await query('SELECT ROUND(AVG(rating), 1) AS avg_rating, COUNT(*) AS count FROM driver_ratings WHERE rider_id = $1', [order.rider_id]);
+
+    res.json({
+      success: true,
+      data: {
+        rating: rows[0],
+        average_rating: parseFloat(avg.rows[0].avg_rating),
+        reviews_count: parseInt(avg.rows[0].count),
+      },
     });
   } catch (err) { next(err); }
 };

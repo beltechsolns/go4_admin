@@ -39,7 +39,7 @@ const findOrCreateSocialUser = async (name, email, avatar, provider, providerId)
 
 export const googleLogin = async (req, res, next) => {
   try {
-    const { id_token } = req.body;
+    const id_token = req.body.id_token || req.body.idToken || req.body.token;
     if (!id_token)
       return res.status(400).json({ success: false, message: 'Google ID token is required' });
 
@@ -60,21 +60,21 @@ export const googleLogin = async (req, res, next) => {
 
     res.json({ success: true, data: { user: safe, token } });
   } catch (err) {
-    if (err.message?.includes('Token used too late') || err.message?.includes('Invalid token'))
-      return res.status(401).json({ success: false, message: 'Invalid Google token' });
+    if (err.message?.includes('Token used too late') || err.message?.includes('Invalid token') || err.message?.includes('Invalid audience'))
+      return res.status(401).json({ success: false, message: 'Invalid Google token: ' + err.message });
     next(err);
   }
 };
 
 export const facebookLogin = async (req, res, next) => {
   try {
-    const { access_token } = req.body;
+    const access_token = req.body.access_token || req.body.accessToken || req.body.token;
     if (!access_token)
       return res.status(400).json({ success: false, message: 'Facebook access token is required' });
 
     // Verify token and get user info from Facebook Graph API
     const response = await fetch(
-      `https://graph.facebook.com/me?fields=id,name,email,picture.type(large)&access_token=${access_token}`
+      `https://graph.facebook.com/me?fields=id,name,email,picture.type(large)&access_token=${encodeURIComponent(access_token)}`
     );
     const data = await response.json();
 

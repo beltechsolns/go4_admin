@@ -2,11 +2,28 @@ import { query } from '../../config/db.js';
 
 export const getNotifications = async (req, res, next) => {
   try {
-    const { rows } = await query(
-      'SELECT * FROM user_notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50',
-      [req.user.id]
-    );
-    res.json({ success: true, data: rows });
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const [listResult, unreadResult] = await Promise.all([
+      query(
+        'SELECT * FROM user_notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+        [req.user.id, parseInt(limit), offset]
+      ),
+      query(
+        'SELECT COUNT(*) AS unread FROM user_notifications WHERE user_id = $1 AND is_read = false',
+        [req.user.id]
+      ),
+      query('SELECT COUNT(*) AS total FROM user_notifications WHERE user_id = $1', [req.user.id]),
+    ]);
+
+    res.json({
+      success: true,
+      data: listResult.rows,
+      unread_count: parseInt(unreadResult[0].rows[0].unread),
+      total: parseInt(unreadResult[1].rows[0].total),
+      pagination: { page: parseInt(page), limit: parseInt(limit) },
+    });
   } catch (err) { next(err); }
 };
 
@@ -17,6 +34,22 @@ export const markAsRead = async (req, res, next) => {
       [req.params.id, req.user.id]
     );
     if (!rows.length) return res.status(404).json({ success: false, message: 'Notification not found' });
-    res.json({ success: true, data: rows[0] });
+
+    const unread = await query(
+      'SELECT COUNT(*) AS unread FROM user_notifications WHERE user_id = $1 AND is_read = false',
+      [req.user.id]
+    );
+
+    res.json({ success: true, data: rows[0], unread_count: parseInt(unread.rows[0].unread) });
+  } catch (err) { next(err); }
+};
+
+export const markAllAsRead = async (req, res, next) => {
+  try {
+    await query(
+      'UPDATE user_notifications SET is_read = true WHERE user_id = $1 AND is_read = false',
+      [req.user.id]
+    );
+    res.json({ success: true, message: 'All notifications marked as read', unread_count: 0 });
   } catch (err) { next(err); }
 };

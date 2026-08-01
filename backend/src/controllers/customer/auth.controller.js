@@ -27,6 +27,16 @@ export const register = async (req, res, next) => {
       [name, email, phone, hash, role === 'rider' ? 'rider' : 'customer']
     );
 
+    // Sync rider account into the riders table so tracking/status works
+    if (role === 'rider') {
+      await query(
+        `INSERT INTO riders (full_name, phone, email, status)
+         VALUES ($1, $2, $3, 'Offline')
+         ON CONFLICT (phone) DO UPDATE SET full_name = EXCLUDED.full_name, email = EXCLUDED.email`,
+        [name, phone, email]
+      );
+    }
+
     const user = rows[0];
     const token = generateToken(user.id, user.email, user.role);
 

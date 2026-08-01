@@ -70,6 +70,8 @@ router.get('/orders', customerAuth, orders.getOrders);
 router.get('/orders/pending', customerAuth, roleMiddleware(['rider']), orders.getPendingOrders);
 router.get('/orders/delivered', customerAuth, orders.getDeliveredOrders);
 router.get('/orders/:id', customerAuth, orders.getOrderByID);
+router.get('/orders/:id/tracking', customerAuth, orders.trackOrder);
+router.post('/orders/:id/rate-driver', customerAuth, orders.rateDriver);
 router.put('/orders/:id/status', customerAuth, orders.updateOrderStatus);
 router.put('/orders/:id/cancel', customerAuth, orders.cancelOrder);
 
@@ -98,6 +100,7 @@ router.put('/address/current', customerAuth, locations.updateCurrentAddress);
 // Notifications
 router.get('/notifications', customerAuth, notifications.getNotifications);
 router.put('/notifications/:id/read', customerAuth, notifications.markAsRead);
+router.put('/notifications/read-all', customerAuth, notifications.markAllAsRead);
 
 // Restaurants
 router.get('/restaurants', restaurants.getRestaurants);
