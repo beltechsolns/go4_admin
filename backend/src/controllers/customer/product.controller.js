@@ -116,7 +116,8 @@ export const createProduct = async (req, res, next) => {
       if (!s.rows.length) return res.status(404).json({ success: false, message: 'Store not found' });
     }
 
-    const image = req.file ? '/uploads/' + req.file.filename : null;
+    const BASE_URL = process.env.BASE_URL || 'https://go4-admin.onrender.com';
+    const image = req.file ? BASE_URL + '/uploads/' + req.file.filename : null;
 
     const { rows } = await query(
       'INSERT INTO products (store_id, category_id, name, description, price, discount_price, image, is_special_offer) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
@@ -131,8 +132,24 @@ export const uploadProductImage = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No image uploaded' });
 
-    const imagePath = '/uploads/' + req.file.filename;
+    const BASE_URL = process.env.BASE_URL || 'https://go4-admin.onrender.com';
+    const imagePath = BASE_URL + '/uploads/' + req.file.filename;
     const { rows } = await query('UPDATE products SET image = $1, updated_at = NOW() WHERE id = $2 RETURNING *', [imagePath, req.params.id]);
+
+    if (!rows.length) return res.status(404).json({ success: false, message: 'Product not found' });
+    res.json({ success: true, data: fixItemImages(rows[0]) });
+  } catch (err) { next(err); }
+};
+
+export const setProductImageUrl = async (req, res, next) => {
+  try {
+    const { image_url } = req.body;
+    if (!image_url) return res.status(400).json({ success: false, message: 'image_url is required' });
+
+    const { rows } = await query(
+      'UPDATE products SET image = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      [image_url, req.params.id]
+    );
 
     if (!rows.length) return res.status(404).json({ success: false, message: 'Product not found' });
     res.json({ success: true, data: fixItemImages(rows[0]) });

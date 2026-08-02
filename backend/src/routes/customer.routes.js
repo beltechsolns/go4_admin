@@ -50,6 +50,7 @@ router.get('/products/:id/ratings', products.getProductRatings);
 router.post('/products/:id/rate', customerAuth, products.rateProduct);
 router.post('/products', customerAuth, upload.single('image'), products.createProduct);
 router.post('/products/:id/image', customerAuth, upload.single('image'), products.uploadProductImage);
+router.put('/products/:id/image', customerAuth, products.setProductImageUrl);
 router.patch('/products/:id/special-offer', customerAuth, products.toggleSpecialOffer);
 router.get('/categories', products.getCategories);
 router.get('/special-offers', products.getSpecialOffers);
