@@ -30,10 +30,10 @@ export const register = async (req, res, next) => {
     // Sync rider account into the riders table so tracking/status works
     if (role === 'rider') {
       await query(
-        `INSERT INTO riders (full_name, phone, email, status)
-         VALUES ($1, $2, $3, 'Offline')
-         ON CONFLICT (phone) DO UPDATE SET full_name = EXCLUDED.full_name, email = EXCLUDED.email`,
-        [name, phone, email]
+        `INSERT INTO riders (full_name, phone, email, user_id, status)
+         VALUES ($1, $2, $3, $4, 'Offline')
+         ON CONFLICT (phone) DO UPDATE SET full_name = EXCLUDED.full_name, email = EXCLUDED.email, user_id = EXCLUDED.user_id`,
+        [name, phone, email, rows[0].id]
       );
     }
 
