@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { query } from '../../config/db.js';
+import { syncCustomerToAdmin, syncRiderToAdmin } from '../../helpers/adminSync.js';
 
 const generateToken = (userId, email, role) =>
   jwt.sign({ user_id: userId, email, role }, process.env.JWT_SECRET, { expiresIn: '24h' });
@@ -27,17 +28,15 @@ export const register = async (req, res, next) => {
       [name, email, phone, hash, role === 'rider' ? 'rider' : 'customer']
     );
 
-    // Sync rider account into the riders table so tracking/status works
-    if (role === 'rider') {
-      await query(
-        `INSERT INTO riders (full_name, phone, email, user_id, status)
-         VALUES ($1, $2, $3, $4, 'Offline')
-         ON CONFLICT (phone) DO UPDATE SET full_name = EXCLUDED.full_name, email = EXCLUDED.email, user_id = EXCLUDED.user_id`,
-        [name, phone, email, rows[0].id]
-      );
+    const user = rows[0];
+
+    // Sync app user into admin panel tables
+    if (user.role === 'rider') {
+      await syncRiderToAdmin(user);
+    } else {
+      await syncCustomerToAdmin(user);
     }
 
-    const user = rows[0];
     const token = generateToken(user.id, user.email, user.role);
 
     res.status(201).json({ success: true, message: 'User registered successfully', data: { user, token } });
@@ -58,6 +57,13 @@ export const login = async (req, res, next) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid)
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+    // Sync app user into admin panel tables (catch users registered before this fix)
+    if (user.role === 'rider') {
+      await syncRiderToAdmin(user);
+    } else {
+      await syncCustomerToAdmin(user);
+    }
 
     const token = generateToken(user.id, user.email, user.role);
     const { password_hash, ...safe } = user;

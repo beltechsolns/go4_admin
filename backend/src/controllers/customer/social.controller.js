@@ -2,6 +2,7 @@ import { OAuth2Client } from 'google-auth-library';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../../config/db.js';
+import { syncCustomerToAdmin } from '../../helpers/adminSync.js';
 
 const googleClient = new OAuth2Client();
 
@@ -18,6 +19,8 @@ const findOrCreateSocialUser = async (name, email, avatar, provider, providerId)
       await query('UPDATE users SET avatar = $1 WHERE id = $2', [avatar, rows[0].id]);
       rows[0].avatar = avatar;
     }
+    // Sync existing user into admin panel
+    await syncCustomerToAdmin(rows[0]);
     return rows[0];
   }
 
@@ -34,6 +37,8 @@ const findOrCreateSocialUser = async (name, email, avatar, provider, providerId)
     'INSERT INTO users (name, email, password_hash, role, avatar) VALUES ($1, $2, $3, $4, $5) RETURNING *',
     [name, email, hash, 'customer', avatar || null]
   );
+  // Sync new user into admin panel
+  await syncCustomerToAdmin(newUser[0]);
   return newUser[0];
 };
 
