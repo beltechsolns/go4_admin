@@ -284,6 +284,7 @@ export const removeProduct = async (req, res, next) => {
 
 /**
  * GET /api/stores/:id/categories
+ * Categories are global (shared across all restaurants)
  */
 export const getCategories = async (req, res, next) => {
   try {
@@ -293,10 +294,8 @@ export const getCategories = async (req, res, next) => {
          COUNT(p.id) AS product_count
        FROM categories c
        LEFT JOIN products p ON p.category_id = c.id
-       WHERE c.store_id = $1
        GROUP BY c.id
-       ORDER BY c.created_at ASC`,
-      [req.params.id]
+       ORDER BY c.name ASC`
     );
 
     res.json({ success: true, data: rows });
@@ -307,6 +306,7 @@ export const getCategories = async (req, res, next) => {
 
 /**
  * POST /api/stores/:id/categories
+ * Creates a global category (shared across all restaurants)
  */
 export const createCategory = async (req, res, next) => {
   try {
@@ -317,8 +317,8 @@ export const createCategory = async (req, res, next) => {
     }
 
     const { rows } = await query(
-      'INSERT INTO categories (store_id, name, icon) VALUES ($1, $2, $3) RETURNING *',
-      [req.params.id, name, icon || '📦']
+      'INSERT INTO categories (name, icon) VALUES ($1, $2) RETURNING *',
+      [name, icon || '📦']
     );
 
     res.status(201).json({ success: true, data: rows[0] });
@@ -340,9 +340,9 @@ export const updateCategory = async (req, res, next) => {
          name = COALESCE($1, name),
          icon = COALESCE($2, icon),
          updated_at = NOW()
-       WHERE id = $3 AND store_id = $4
+       WHERE id = $3
        RETURNING *`,
-      [name, icon, req.params.cid, req.params.id]
+      [name, icon, req.params.cid]
     );
 
     if (!rows.length) {
@@ -361,8 +361,8 @@ export const updateCategory = async (req, res, next) => {
 export const removeCategory = async (req, res, next) => {
   try {
     const { rows } = await query(
-      'DELETE FROM categories WHERE id = $1 AND store_id = $2 RETURNING id',
-      [req.params.cid, req.params.id]
+      'DELETE FROM categories WHERE id = $1 RETURNING id',
+      [req.params.cid]
     );
 
     if (!rows.length) {

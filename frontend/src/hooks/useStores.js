@@ -58,24 +58,23 @@ export function useStoreProducts(storeId, { search = '', category = '' } = {}) {
   return { data, loading, refetch, removeProduct }
 }
 
-export function useStoreCategories(storeId) {
+export function useStoreCategories() {
   const [data, setData]       = useState([])
   const [loading, setLoading] = useState(true)
   const [key, setKey]         = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    if (!storeId) { setLoading(false); return } // eslint-disable-line react-hooks/set-state-in-effect
     setLoading(true)
-    api.get(`/stores/${storeId}/categories`)
+    api.get('/categories')
       .then(r => { if (!cancelled) setData(r.data.data) })
       .catch(() => { if (!cancelled) setData([]) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [storeId, key])
+  }, [key])
 
   const removeCategory = async (cid) => {
-    await api.delete(`/stores/${storeId}/categories/${cid}`)
+    await api.delete(`/categories/${cid}`)
     setKey(k => k + 1)
   }
 

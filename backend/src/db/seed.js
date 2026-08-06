@@ -128,11 +128,18 @@ async function seed() {
       if (!storeId) continue;
 
       for (const cat of categories) {
-        const catRes = await client.query(
-          `INSERT INTO categories (store_id, name, icon) VALUES ($1, $2, $3) RETURNING id`,
-          [storeId, cat.cat, cat.icon]
+        let catRes = await client.query(
+          `SELECT id FROM categories WHERE LOWER(TRIM(name)) = LOWER($1)`,
+          [cat.cat]
         );
-        const catId = catRes.rows[0].id;
+        let catId = catRes.rows[0]?.id;
+        if (!catId) {
+          const inserted = await client.query(
+            `INSERT INTO categories (name, icon) VALUES ($1, $2) RETURNING id`,
+            [cat.cat, cat.icon]
+          );
+          catId = inserted.rows[0].id;
+        }
 
         for (const [name, price] of cat.items) {
           await client.query(

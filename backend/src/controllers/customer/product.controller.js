@@ -3,27 +3,25 @@ import { fixImages, fixItemImages } from '../../helpers/imageHelper.js';
 
 export const getCategories = async (req, res, next) => {
   try {
-    const { store_id } = req.query;
-    let sql = 'SELECT c.*, s.name AS store_name FROM categories c LEFT JOIN stores s ON s.id = c.store_id';
-    const params = [];
-    if (store_id) {
-      sql += ' WHERE c.store_id = $1';
-      params.push(store_id);
-    }
-    sql += ' ORDER BY c.name';
-    const { rows } = await query(sql, params);
-    res.json({ success: true, data: rows });
+    const { rows } = await query(
+      `SELECT
+         c.*,
+         (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.available = true) AS product_count
+       FROM categories c
+       ORDER BY c.name`
+    );
+    res.json({ success: true, data: fixImages(rows) });
   } catch (err) { next(err); }
 };
 
 export const getCategoryByID = async (req, res, next) => {
   try {
     const { rows } = await query(
-      'SELECT c.*, s.name AS store_name FROM categories c LEFT JOIN stores s ON s.id = c.store_id WHERE c.id = $1',
+      'SELECT * FROM categories WHERE id = $1',
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ success: false, message: 'Category not found' });
-    res.json({ success: true, data: rows[0] });
+    res.json({ success: true, data: fixItemImages(rows[0]) });
   } catch (err) { next(err); }
 };
 

@@ -5,7 +5,7 @@ import api from '../../api/client'
 
 const ICONS = ['🍕', '🍔', '🍲', '🥤', '☕', '🍟', '🥗', '🍰', '🥨', '🍎', '🥬', '🧃', '🧁', '🥐', '🍜', '🌯', '🥪', '🍣']
 
-export default function AddCategoryModal({ storeId, onClose, onSaved, initial }) {
+export default function AddCategoryModal({ onClose, onSaved, initial }) {
   const { t } = useTranslation()
   const isEdit = !!initial
   const [form, setForm]     = useState({ name: '', icon: '📦' })
@@ -29,9 +29,9 @@ export default function AddCategoryModal({ storeId, onClose, onSaved, initial })
     setError('')
     try {
       if (isEdit) {
-        await api.put(`/stores/${storeId}/categories/${initial.id}`, form)
+        await api.put(`/categories/${initial.id}`, form)
       } else {
-        await api.post(`/stores/${storeId}/categories`, form)
+        await api.post('/categories', form)
       }
       onSaved()
       onClose()

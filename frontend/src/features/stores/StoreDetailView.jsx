@@ -21,7 +21,7 @@ export default function StoreDetailView({ storeId, onBack }) {
   const { data: products, loading: pLoading, removeProduct, refetch: refetchProducts } =
     useStoreProducts(storeId, { search, category: catFilter })
   const { data: categories, loading: cLoading, removeCategory, refetch: refetchCategories } =
-    useStoreCategories(storeId)
+    useStoreCategories()
 
   const allCat = t('stores.allCategories')
   const productCategories = [allCat, ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))]
@@ -162,7 +162,7 @@ export default function StoreDetailView({ storeId, onBack }) {
         <AddProductModal storeId={storeId} categories={categories} initial={editingProduct}
           onClose={() => { setShowAddProduct(false); setEditingProduct(null) }} onSaved={refetchProducts} />}
       {(showAddCategory || editingCategory) &&
-        <AddCategoryModal storeId={storeId} initial={editingCategory}
+        <AddCategoryModal initial={editingCategory}
           onClose={() => { setShowAddCategory(false); setEditingCategory(null) }} onSaved={refetchCategories} />}
     </div>
   )
