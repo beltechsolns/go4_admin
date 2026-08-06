@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import { fixItemImages, fixImages } from '../helpers/imageHelper.js';
 
 /**
  * GET /api/stores
@@ -190,7 +191,7 @@ export const getProducts = async (req, res, next) => {
       params
     );
 
-    res.json({ success: true, data: rows });
+    res.json({ success: true, data: fixImages(rows) });
   } catch (err) {
     next(err);
   }
@@ -201,15 +202,15 @@ export const getProducts = async (req, res, next) => {
  */
 export const createProduct = async (req, res, next) => {
   try {
-    const { name, category, category_id, price, status, emoji } = req.body;
+    const { name, category, category_id, price, status, emoji, image } = req.body;
 
     if (!name || price === undefined) {
       return res.status(400).json({ success: false, error: 'name and price are required.' });
     }
 
     const { rows } = await query(
-      `INSERT INTO products (store_id, category_id, name, category, price, status, emoji)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO products (store_id, category_id, name, category, price, status, emoji, image)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         req.params.id,
@@ -219,6 +220,7 @@ export const createProduct = async (req, res, next) => {
         parseFloat(price),
         status || 'Active',
         emoji || '📦',
+        image || null,
       ]
     );
 
@@ -233,7 +235,7 @@ export const createProduct = async (req, res, next) => {
  */
 export const updateProduct = async (req, res, next) => {
   try {
-    const { name, category, category_id, price, status, emoji } = req.body;
+    const { name, category, category_id, price, status, emoji, image } = req.body;
 
     const { rows } = await query(
       `UPDATE products
@@ -244,10 +246,38 @@ export const updateProduct = async (req, res, next) => {
          price = COALESCE($4, price),
          status = COALESCE($5, status),
          emoji = COALESCE($6, emoji),
+         image = COALESCE($7, image),
          updated_at = NOW()
-       WHERE id = $7 AND store_id = $8
+       WHERE id = $8 AND store_id = $9
        RETURNING *`,
-      [name, category, category_id, price ? parseFloat(price) : null, status, emoji, req.params.pid, req.params.id]
+      [name, category, category_id, price ? parseFloat(price) : null, status, emoji, image, req.params.pid, req.params.id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ success: false, error: 'Product not found.' });
+    }
+
+    res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/stores/:id/products/:pid/image
+ */
+export const uploadProductImage = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No image uploaded.' });
+    }
+
+    const BASE_URL = process.env.BASE_URL || 'https://go4-admin.onrender.com';
+    const imagePath = BASE_URL + '/uploads/' + req.file.filename;
+
+    const { rows } = await query(
+      `UPDATE products SET image = $1, updated_at = NOW() WHERE id = $2 AND store_id = $3 RETURNING *`,
+      [imagePath, req.params.pid, req.params.id]
     );
 
     if (!rows.length) {

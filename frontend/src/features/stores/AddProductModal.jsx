@@ -6,13 +6,13 @@ import api from '../../api/client'
 export default function AddProductModal({ storeId, categories, onClose, onSaved, initial }) {
   const { t } = useTranslation()
   const isEdit = !!initial
-  const [form, setForm]     = useState({ name: '', price: '', category_id: '', status: 'Active' })
+  const [form, setForm]     = useState({ name: '', price: '', category_id: '', status: 'Active', image: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
 
   useEffect(() => {
-    if (initial) setForm({ name: initial.name, price: String(initial.price), category_id: String(initial.category_id || ''), status: initial.status || 'Active' })
-    else setForm({ name: '', price: '', category_id: '', status: 'Active' })
+    if (initial) setForm({ name: initial.name, price: String(initial.price), category_id: String(initial.category_id || ''), status: initial.status || 'Active', image: initial.image || '' })
+    else setForm({ name: '', price: '', category_id: '', status: 'Active', image: '' })
   }, [initial])
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
@@ -39,6 +39,7 @@ export default function AddProductModal({ storeId, categories, onClose, onSaved,
           category_id: form.category_id || undefined,
           category: selectedCat?.name || undefined,
           emoji: selectedCat?.icon || initial.emoji || '📦',
+          image: form.image || undefined,
         })
       } else {
         await api.post(`/stores/${storeId}/products`, {
@@ -48,6 +49,7 @@ export default function AddProductModal({ storeId, categories, onClose, onSaved,
           category_id: form.category_id || undefined,
           category: selectedCat?.name || undefined,
           emoji: selectedCat?.icon || '📦',
+          image: form.image || undefined,
         })
       }
       onSaved()
@@ -85,6 +87,18 @@ export default function AddProductModal({ storeId, categories, onClose, onSaved,
             <option value="Active">{t('stores.active')}</option>
             <option value="Inactive">{t('stores.inactive')}</option>
           </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-[#1B2559]">{t('stores.productImage')}</label>
+          <input value={form.image} onChange={e => set('image', e.target.value)}
+            placeholder="https://..."
+            className="w-full rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm outline-none focus:border-[#F25C22]" />
+          {form.image && (
+            <img src={form.image} alt="preview"
+              onError={e => { e.target.style.opacity = 0.3 }}
+              className="mt-2 h-20 w-20 rounded-xl object-cover border border-[#E0E5F2]" />
+          )}
         </div>
 
         <div>

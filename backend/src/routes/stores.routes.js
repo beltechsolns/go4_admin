@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import path from 'path';
+import multer from 'multer';
 import {
   getAll,
   getOne,
@@ -9,6 +11,7 @@ import {
   createProduct,
   updateProduct,
   removeProduct,
+  uploadProductImage,
   getCategories,
   createCategory,
   updateCategory,
@@ -17,6 +20,20 @@ import {
 import auth from '../middleware/auth.js';
 
 const router = Router();
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname)),
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/gif'];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
 
 // All routes protected
 router.use(auth);
@@ -49,6 +66,9 @@ router.put('/:id/products/:pid', updateProduct);
 
 // DELETE /api/stores/:id/products/:pid
 router.delete('/:id/products/:pid', removeProduct);
+
+// POST   /api/stores/:id/products/:pid/image
+router.post('/:id/products/:pid/image', upload.single('image'), uploadProductImage);
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 

@@ -109,7 +109,10 @@ export default function StoreDetailView({ storeId, onBack }) {
                         <tr key={p.id} className="hover:bg-[#FAFAFA]">
                           <td className="py-3.5 pr-4">
                             <div className="flex items-center gap-3">
-                              <span className="text-2xl">{p.emoji}</span>
+                              {p.image
+                                ? <img src={p.image} alt={p.name} onError={e => { e.target.style.display = 'none' }}
+                                    className="h-9 w-9 rounded-lg object-cover shrink-0" />
+                                : <span className="text-2xl">{p.emoji}</span>}
                               <span className="font-semibold text-[#1B2559]">{p.name}</span>
                             </div>
                           </td>
