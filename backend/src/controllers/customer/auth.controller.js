@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { query } from '../../config/db.js';
 import { syncCustomerToAdmin, syncRiderToAdmin } from '../../helpers/adminSync.js';
+import { sendPasswordResetEmail, sendWelcomeEmail } from '../../helpers/emailHelper.js';
 
 const generateToken = (userId, email, role) =>
   jwt.sign({ user_id: userId, email, role }, process.env.JWT_SECRET, { expiresIn: '24h' });
@@ -38,6 +39,13 @@ export const register = async (req, res, next) => {
     }
 
     const token = generateToken(user.id, user.email, user.role);
+
+    // Send welcome email (non-blocking, don't fail registration if email fails)
+    try {
+      await sendWelcomeEmail({ to: user.email, name: user.name });
+    } catch (mailErr) {
+      console.error('[WelcomeEmail] Send failed:', mailErr.message);
+    }
 
     res.status(201).json({ success: true, message: 'User registered successfully', data: { user, token } });
   } catch (err) { next(err); }
@@ -97,7 +105,7 @@ export const forgotPassword = async (req, res, next) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email required' });
 
-    const { rows } = await query('SELECT id FROM users WHERE email = $1', [email]);
+    const { rows } = await query('SELECT id, email FROM users WHERE email = $1', [email]);
     if (rows.length) {
       const user = rows[0];
       const rawToken = crypto.randomBytes(32).toString('hex');
@@ -109,7 +117,11 @@ export const forgotPassword = async (req, res, next) => {
         [user.id, tokenHash, expires]
       );
 
-      console.log(`[PasswordReset] Token for ${email}: ${rawToken}`);
+      try {
+        await sendPasswordResetEmail({ to: user.email, resetToken: rawToken });
+      } catch (mailErr) {
+        console.error('[PasswordReset] Email send failed:', mailErr.message);
+      }
     }
 
     res.json({ success: true, message: 'If the email exists, a reset link has been sent' });

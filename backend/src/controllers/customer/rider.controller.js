@@ -1,5 +1,20 @@
 import { query } from '../../config/db.js';
 import { resolveRiderId } from '../../helpers/riderHelper.js';
+import { sendOrderStatusEmail } from '../../helpers/emailHelper.js';
+
+async function notifyOrderStatus(order, status) {
+  try {
+    const [{ rows: user }, { rows: items }] = await Promise.all([
+      query('SELECT name, email FROM users WHERE id = $1', [order.user_id]),
+      query('SELECT product_name, quantity, price FROM order_items WHERE order_id = $1', [order.id]),
+    ]);
+    if (!user.length || !user[0].email) return;
+    order.items = items;
+    await sendOrderStatusEmail({ to: user[0].email, name: user[0].name, order, status });
+  } catch (err) {
+    console.error(`[OrderEmail] ${status} notification failed:`, err.message);
+  }
+}
 
 export const getDashboard = async (req, res, next) => {
   try {
@@ -183,6 +198,7 @@ export const acceptOrder = async (req, res, next) => {
     );
     if (!rows.length) return res.status(400).json({ success: false, message: 'Order not available' });
     rows[0].orderName = rows[0].order_name;
+    notifyOrderStatus(rows[0], 'accepted');
     res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
 };
@@ -213,6 +229,7 @@ export const completeDelivery = async (req, res, next) => {
     );
     if (!rows.length) return res.status(400).json({ success: false, message: 'Order not found' });
     rows[0].orderName = rows[0].order_name;
+    notifyOrderStatus(rows[0], 'delivered');
     res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
 };

@@ -1,6 +1,7 @@
 import { query } from '../../config/db.js';
 import { haversineKm, computeEtaMinutes, hasArrived } from '../../helpers/geoHelper.js';
 import { fixItemImages } from '../../helpers/imageHelper.js';
+import { sendOrderConfirmationEmail, sendOrderStatusEmail } from '../../helpers/emailHelper.js';
 
 export const createOrder = async (req, res, next) => {
   try {
@@ -10,7 +11,7 @@ export const createOrder = async (req, res, next) => {
     if (!delivery_address)
       return res.status(400).json({ success: false, message: 'Delivery address required' });
 
-    const { rows: user } = await query('SELECT name FROM users WHERE id = $1', [req.user.id]);
+    const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [req.user.id]);
 
     const productIds = items.map(i => i.product_id).filter(Boolean);
     let orderName = `Order #${Date.now().toString(36).toUpperCase()}`;
@@ -58,6 +59,13 @@ export const createOrder = async (req, res, next) => {
     fullOrder.items = fixItemImages(orderItems);
 
     fullOrder.orderName = fullOrder.order_name;
+
+    // Send order confirmation email (non-blocking)
+    try {
+      await sendOrderConfirmationEmail({ to: user[0].email, name: user[0].name, order: fullOrder });
+    } catch (mailErr) {
+      console.error('[OrderEmail] Confirmation send failed:', mailErr.message);
+    }
 
     res.status(201).json({ success: true, data: fullOrder });
   } catch (err) { next(err); }
