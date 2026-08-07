@@ -4,7 +4,7 @@ import Modal from '../../components/shared/Modal'
 import api from '../../api/client'
 
 const TYPES = ['Restaurant', 'Fast Food', 'Mini Market', 'Beverages', 'Cafe', 'Other']
-const EMPTY = { name: '', type: 'Restaurant', location: '', phone: '', image_url: '' }
+const EMPTY = { name: '', type: 'Restaurant', location: '', phone: '', image_url: '', description: '' }
 
 export default function AddStoreModal({ onClose, onSaved, initial }) {
   const { t } = useTranslation()
@@ -14,7 +14,7 @@ export default function AddStoreModal({ onClose, onSaved, initial }) {
   const [error, setError]   = useState('')
 
   useEffect(() => {
-    if (initial) setForm({ name: initial.name, type: initial.type, location: initial.location, phone: initial.phone, image_url: initial.image_url || '' })
+    if (initial) setForm({ name: initial.name, type: initial.type, location: initial.location, phone: initial.phone, image_url: initial.image_url || '', description: initial.description || '' })
     else setForm(EMPTY)
   }, [initial])
 
@@ -75,6 +75,14 @@ export default function AddStoreModal({ onClose, onSaved, initial }) {
           <input value={form.phone} onChange={e => set('phone', e.target.value)}
             placeholder="+251 911 111 111"
             className="w-full rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm outline-none focus:border-[#F25C22]" />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-[#1B2559]">{t('stores.description')}</label>
+          <textarea value={form.description} onChange={e => set('description', e.target.value)}
+            rows="3"
+            placeholder="Fresh pizza made with local ingredients, delivered hot to your door."
+            className="w-full resize-none rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm outline-none focus:border-[#F25C22]" />
         </div>
 
         <div>

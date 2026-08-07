@@ -241,6 +241,7 @@
     "imageUrlOptional": "URL suuraa (dirqamni hin jiru)",
     "productImage": "URL suuraa (dirqamni hin jiru)",
     "productDescription": "Ibsa (dirqamni hin jiru)",
+    "description": "Ibsa (dirqamni hin jiru)",
     "validPriceRequired": "Maaloo gatii sirrii 0 ol ta'e galchi.",
     "noCategory": "Ramaddii hin jiru",
     "icon": "Akeekoo"

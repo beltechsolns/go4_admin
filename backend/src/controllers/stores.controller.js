@@ -88,17 +88,17 @@ export const getOne = async (req, res, next) => {
  */
 export const create = async (req, res, next) => {
   try {
-    const { name, type, location, phone, rating, image_url } = req.body;
+    const { name, type, location, phone, rating, image_url, description } = req.body;
 
     if (!name) {
       return res.status(400).json({ success: false, error: 'name is required.' });
     }
 
     const { rows } = await query(
-      `INSERT INTO stores (name, type, location, phone, rating, image_url)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO stores (name, type, location, phone, rating, image_url, description)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [name, type || 'Restaurant', location || null, phone || null, rating || 5.0, image_url || null]
+      [name, type || 'Restaurant', location || null, phone || null, rating || 5.0, image_url || null, description || null]
     );
 
     res.status(201).json({ success: true, data: rows[0] });
@@ -112,7 +112,7 @@ export const create = async (req, res, next) => {
  */
 export const update = async (req, res, next) => {
   try {
-    const { name, type, location, phone, rating, image_url, is_active } = req.body;
+    const { name, type, location, phone, rating, image_url, is_active, description } = req.body;
 
     const { rows } = await query(
       `UPDATE stores
@@ -124,10 +124,11 @@ export const update = async (req, res, next) => {
          rating = COALESCE($5, rating),
          image_url = COALESCE($6, image_url),
          is_active = COALESCE($7, is_active),
+         description = COALESCE($8, description),
          updated_at = NOW()
-       WHERE id = $8
+       WHERE id = $9
        RETURNING *`,
-      [name, type, location, phone, rating, image_url, is_active, req.params.id]
+      [name, type, location, phone, rating, image_url, is_active, description, req.params.id]
     );
 
     if (!rows.length) {

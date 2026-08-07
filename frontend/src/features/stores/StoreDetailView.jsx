@@ -50,6 +50,7 @@ export default function StoreDetailView({ storeId, onBack }) {
           alt={store.name} className="h-20 w-20 rounded-xl object-cover shrink-0" />
         <div className="space-y-1">
           <h2 className="text-xl font-bold text-[#1B2559]">{store.name}</h2>
+          {store.description && <p className="text-sm text-[#64748b]">{store.description}</p>}
           <p className="text-sm text-[#64748b]">{store.location}</p>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1 text-sm text-[#64748b]">
