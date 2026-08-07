@@ -202,15 +202,15 @@ export const getProducts = async (req, res, next) => {
  */
 export const createProduct = async (req, res, next) => {
   try {
-    const { name, category, category_id, price, status, emoji, image } = req.body;
+    const { name, category, category_id, price, status, emoji, image, description } = req.body;
 
     if (!name || price === undefined) {
       return res.status(400).json({ success: false, error: 'name and price are required.' });
     }
 
     const { rows } = await query(
-      `INSERT INTO products (store_id, category_id, name, category, price, status, emoji, image)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO products (store_id, category_id, name, category, price, status, emoji, image, description)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         req.params.id,
@@ -221,6 +221,7 @@ export const createProduct = async (req, res, next) => {
         status || 'Active',
         emoji || '📦',
         image || null,
+        description || null,
       ]
     );
 
@@ -235,7 +236,7 @@ export const createProduct = async (req, res, next) => {
  */
 export const updateProduct = async (req, res, next) => {
   try {
-    const { name, category, category_id, price, status, emoji, image } = req.body;
+    const { name, category, category_id, price, status, emoji, image, description } = req.body;
 
     const { rows } = await query(
       `UPDATE products
@@ -247,10 +248,11 @@ export const updateProduct = async (req, res, next) => {
          status = COALESCE($5, status),
          emoji = COALESCE($6, emoji),
          image = COALESCE($7, image),
+         description = COALESCE($8, description),
          updated_at = NOW()
-       WHERE id = $8 AND store_id = $9
+       WHERE id = $9 AND store_id = $10
        RETURNING *`,
-      [name, category, category_id, price ? parseFloat(price) : null, status, emoji, image, req.params.pid, req.params.id]
+      [name, category, category_id, price ? parseFloat(price) : null, status, emoji, image, description, req.params.pid, req.params.id]
     );
 
     if (!rows.length) {

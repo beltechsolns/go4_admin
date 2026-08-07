@@ -6,13 +6,13 @@ import api from '../../api/client'
 export default function AddProductModal({ storeId, categories, onClose, onSaved, initial }) {
   const { t } = useTranslation()
   const isEdit = !!initial
-  const [form, setForm]     = useState({ name: '', price: '', category_id: '', status: 'Active', image: '' })
+  const [form, setForm]     = useState({ name: '', price: '', category_id: '', status: 'Active', image: '', description: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
 
   useEffect(() => {
-    if (initial) setForm({ name: initial.name, price: String(initial.price), category_id: String(initial.category_id || ''), status: initial.status || 'Active', image: initial.image || '' })
-    else setForm({ name: '', price: '', category_id: '', status: 'Active', image: '' })
+    if (initial) setForm({ name: initial.name, price: String(initial.price), category_id: String(initial.category_id || ''), status: initial.status || 'Active', image: initial.image || '', description: initial.description || '' })
+    else setForm({ name: '', price: '', category_id: '', status: 'Active', image: '', description: '' })
   }, [initial])
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
@@ -40,6 +40,7 @@ export default function AddProductModal({ storeId, categories, onClose, onSaved,
           category: selectedCat?.name || undefined,
           emoji: selectedCat?.icon || initial.emoji || '📦',
           image: form.image || undefined,
+          description: form.description || undefined,
         })
       } else {
         await api.post(`/stores/${storeId}/products`, {
@@ -50,6 +51,7 @@ export default function AddProductModal({ storeId, categories, onClose, onSaved,
           category: selectedCat?.name || undefined,
           emoji: selectedCat?.icon || '📦',
           image: form.image || undefined,
+          description: form.description || undefined,
         })
       }
       onSaved()
@@ -71,6 +73,14 @@ export default function AddProductModal({ storeId, categories, onClose, onSaved,
           <input value={form.name} onChange={e => set('name', e.target.value)}
             placeholder="Margherita Pizza"
             className="w-full rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm outline-none focus:border-[#F25C22]" />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-[#1B2559]">{t('stores.productDescription')}</label>
+          <textarea value={form.description} onChange={e => set('description', e.target.value)}
+            placeholder="Freshly baked pizza with mozzarella, tomatoes and basil..."
+            rows="3"
+            className="w-full resize-none rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm outline-none focus:border-[#F25C22]" />
         </div>
 
         <div>

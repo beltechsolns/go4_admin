@@ -239,6 +239,7 @@
     "productStatus": "ሁኔታ",
     "imageUrlOptional": "የምስል ዩአርኤል (አማራጭ)",
     "productImage": "የምስል ዩአርኤል (አማራጭ)",
+    "productDescription": "መግለጫ (አማራጭ)",
     "validPriceRequired": "እባክዎ ከ0 በላይ የሆነ ትክክለኛ ዋጋ ያስገቡ።",
     "noCategory": "ምድብ የለም",
     "icon": "አዶ"

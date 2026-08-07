@@ -240,6 +240,7 @@
     "productStatus": "Status",
     "imageUrlOptional": "Image URL (optional)",
     "productImage": "Image URL (optional)",
+    "productDescription": "Description (optional)",
     "validPriceRequired": "Please enter a valid price greater than 0.",
     "noCategory": "No category",
     "icon": "Icon"
