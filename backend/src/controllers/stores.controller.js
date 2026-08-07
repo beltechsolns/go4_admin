@@ -1,5 +1,7 @@
+import fs from 'fs/promises';
 import { query } from '../config/db.js';
 import { fixItemImages, fixImages } from '../helpers/imageHelper.js';
+import { uploadToStorage } from '../helpers/storageHelper.js';
 
 /**
  * GET /api/stores
@@ -275,7 +277,9 @@ export const uploadProductImage = async (req, res, next) => {
     }
 
     const BASE_URL = process.env.BASE_URL || 'https://go4-admin.onrender.com';
-    const imagePath = BASE_URL + '/uploads/' + req.file.filename;
+    const buffer = await fs.readFile(req.file.path);
+    const publicUrl = await uploadToStorage(buffer, req.file.filename, req.file.mimetype);
+    const imagePath = publicUrl || BASE_URL + '/uploads/' + req.file.filename;
 
     const { rows } = await query(
       `UPDATE products SET image = $1, updated_at = NOW() WHERE id = $2 AND store_id = $3 RETURNING *`,

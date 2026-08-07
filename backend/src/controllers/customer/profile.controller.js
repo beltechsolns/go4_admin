@@ -1,4 +1,6 @@
+import fs from 'fs/promises';
 import { query } from '../../config/db.js';
+import { uploadToStorage } from '../../helpers/storageHelper.js';
 
 const BASE_URL = process.env.BASE_URL || 'https://go4-admin.onrender.com';
 
@@ -30,7 +32,9 @@ export const updateProfile = async (req, res, next) => {
 export const uploadAvatar = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
-    const avatarUrl = BASE_URL + '/uploads/' + req.file.filename;
+    const buffer = await fs.readFile(req.file.path);
+    const publicUrl = await uploadToStorage(buffer, req.file.filename, req.file.mimetype);
+    const avatarUrl = publicUrl || BASE_URL + '/uploads/' + req.file.filename;
     const { rows } = await query('UPDATE users SET avatar = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, email, phone, role, avatar, created_at', [avatarUrl, req.user.id]);
     res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }

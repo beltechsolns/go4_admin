@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import path from 'path';
+import fs from 'fs';
 import multer from 'multer';
+import { fileURLToPath } from 'url';
 import {
   getAll,
   getOne,
@@ -21,8 +23,13 @@ import auth from '../middleware/auth.js';
 
 const router = Router();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
+fs.mkdirSync(uploadsDir, { recursive: true });
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
+  destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname)),
 });
 

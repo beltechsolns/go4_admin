@@ -1,5 +1,7 @@
+import fs from 'fs/promises';
 import { query } from '../../config/db.js';
 import { fixImages, fixItemImages } from '../../helpers/imageHelper.js';
+import { uploadToStorage } from '../../helpers/storageHelper.js';
 
 export const getCategories = async (req, res, next) => {
   try {
@@ -115,7 +117,12 @@ export const createProduct = async (req, res, next) => {
     }
 
     const BASE_URL = process.env.BASE_URL || 'https://go4-admin.onrender.com';
-    const image = req.file ? BASE_URL + '/uploads/' + req.file.filename : null;
+    let image = null;
+    if (req.file) {
+      const buffer = await fs.readFile(req.file.path);
+      const publicUrl = await uploadToStorage(buffer, req.file.filename, req.file.mimetype);
+      image = publicUrl || BASE_URL + '/uploads/' + req.file.filename;
+    }
 
     const { rows } = await query(
       'INSERT INTO products (store_id, category_id, name, description, price, discount_price, image, is_special_offer) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
@@ -131,7 +138,9 @@ export const uploadProductImage = async (req, res, next) => {
     if (!req.file) return res.status(400).json({ success: false, message: 'No image uploaded' });
 
     const BASE_URL = process.env.BASE_URL || 'https://go4-admin.onrender.com';
-    const imagePath = BASE_URL + '/uploads/' + req.file.filename;
+    const buffer = await fs.readFile(req.file.path);
+    const publicUrl = await uploadToStorage(buffer, req.file.filename, req.file.mimetype);
+    const imagePath = publicUrl || BASE_URL + '/uploads/' + req.file.filename;
     const { rows } = await query('UPDATE products SET image = $1, updated_at = NOW() WHERE id = $2 RETURNING *', [imagePath, req.params.id]);
 
     if (!rows.length) return res.status(404).json({ success: false, message: 'Product not found' });
