@@ -11,6 +11,7 @@ import ReportsPage from './pages/ReportsPage'
 import RidersPage from './pages/RidersPage'
 import SettingsPage from './pages/SettingsPage'
 import StoresPage from './pages/StoresPage'
+import CategoriesPage from './pages/CategoriesPage'
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -47,6 +48,7 @@ export default function App() {
           <Route path={ROUTES.deliveries} element={<ProtectedRoute><DeliveriesPage /></ProtectedRoute>} />
           <Route path={ROUTES.stores} element={<ProtectedRoute><StoresPage /></ProtectedRoute>} />
           <Route path={`${ROUTES.stores}/:storeSlug`} element={<ProtectedRoute><StoresPage /></ProtectedRoute>} />
+          <Route path={ROUTES.categories} element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
           <Route path={ROUTES.liveTracking} element={<ProtectedRoute><LiveTrackingPage /></ProtectedRoute>} />
           <Route path={ROUTES.reports} element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
           <Route path={ROUTES.pricing} element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />

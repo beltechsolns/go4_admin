@@ -5,6 +5,7 @@ export const ROUTES = {
   riders: '/riders',
   deliveries: '/deliveries',
   stores: '/stores',
+  categories: '/categories',
   liveTracking: '/live-tracking',
   reports: '/reports',
   pricing: '/pricing',

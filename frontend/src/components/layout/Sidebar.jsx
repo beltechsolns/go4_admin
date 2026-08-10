@@ -8,6 +8,7 @@ import {
   Menu,
   Settings,
   Store,
+  Tags,
   Truck,
   Users,
   X,
@@ -40,6 +41,7 @@ function NavContent({ onToggleUserMenu, onClose }) {
   const navItems = [
     { to: ROUTES.deliveries, text: t('sidebar.deliveries'), icon: Truck },
     { to: ROUTES.stores, text: t('sidebar.storesAndProducts'), icon: Store },
+    { to: ROUTES.categories, text: t('sidebar.categories'), icon: Tags },
     { to: ROUTES.liveTracking, text: t('sidebar.liveTracking'), icon: MapPin },
     { to: ROUTES.reports, text: t('sidebar.reportsAndAnalytics'), icon: BarChart3 },
     { to: ROUTES.pricing, text: t('sidebar.pricing'), icon: DollarSign },

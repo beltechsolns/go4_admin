@@ -5,23 +5,18 @@ import { useStoreCategories, useStoreProducts } from '../../hooks/useStores'
 import useApi from '../../hooks/useApi'
 import api from '../../api/client'
 import AddProductModal from './AddProductModal'
-import AddCategoryModal from './AddCategoryModal'
 
 export default function StoreDetailView({ storeId, onBack }) {
   const { t } = useTranslation()
-  const [subTab, setSubTab]       = useState('products')
   const [search, setSearch]       = useState('')
   const [catFilter, setCatFilter]   = useState(t('stores.allCategories'))
   const [showAddProduct, setShowAddProduct] = useState(false)
-  const [showAddCategory, setShowAddCategory] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
-  const [editingCategory, setEditingCategory] = useState(null)
 
   const { data: store } = useApi(() => api.get(`/stores/${storeId}`).then(r => r.data.data), [storeId])
   const { data: products, loading: pLoading, removeProduct, refetch: refetchProducts } =
     useStoreProducts(storeId, { search, category: catFilter })
-  const { data: categories, loading: cLoading, removeCategory, refetch: refetchCategories } =
-    useStoreCategories()
+  const { data: categories } = useStoreCategories()
 
   const allCat = t('stores.allCategories')
   const productCategories = [allCat, ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))]
@@ -64,113 +59,80 @@ export default function StoreDetailView({ storeId, onBack }) {
       </div>
 
       <div className="flex gap-6 border-b border-[#E0E5F2]">
-        {['products', 'categories'].map((tab) => (
-          <button key={tab} onClick={() => setSubTab(tab)}
-            className={`pb-3 text-sm font-semibold transition-colors capitalize ${subTab === tab ? 'border-b-2 border-[#F25C22] text-[#F25C22]' : 'text-[#A3AED0] hover:text-[#1B2559]'}`}>
-            {tab === 'products' ? t('stores.productsTab') : t('stores.categoriesTab')} ({tab === 'products' ? products.length : categories.length})
-          </button>
-        ))}
+        <button className="pb-3 text-sm font-semibold text-[#F25C22] border-b-2 border-[#F25C22]">
+          {t('stores.productsTab')} ({products.length})
+        </button>
       </div>
 
-      {subTab === 'products' ? (
-        <div className="rounded-2xl border border-[#E0E5F2] bg-white p-5 shadow-sm space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-md">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A3AED0]" />
-              <input type="text" placeholder={t('stores.searchProducts')} value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-[#E0E5F2] py-2.5 pl-9 pr-4 text-sm text-[#1B2559] outline-none focus:border-[#F25C22] placeholder:text-[#A3AED0]" />
-            </div>
-            <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)}
-              className="rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm font-medium text-[#1B2559] outline-none focus:border-[#F25C22]">
-              {productCategories.map((c) => <option key={c}>{c}</option>)}
-            </select>
-            <button onClick={() => setShowAddProduct(true)}
-              className="flex items-center gap-2 rounded-xl bg-[#F25C22] px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors shrink-0">
-              <Plus size={15} /> {t('stores.addProduct')}
-            </button>
+      <div className="rounded-2xl border border-[#E0E5F2] bg-white p-5 shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A3AED0]" />
+            <input type="text" placeholder={t('stores.searchProducts')} value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-[#E0E5F2] py-2.5 pl-9 pr-4 text-sm text-[#1B2559] outline-none focus:border-[#F25C22] placeholder:text-[#A3AED0]" />
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-[#F4F7FE]">
-                  <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.product')}</th>
-                  <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.category')}</th>
-                  <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.price')}</th>
-                  <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('common.status')}</th>
-                  <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.actions')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F4F7FE]">
-                {pLoading
-                  ? <tr><td colSpan={5} className="p-6 text-center text-sm text-[#A3AED0]">{t('stores.loadingProducts')}</td></tr>
-                  : products.length === 0
-                    ? <tr><td colSpan={5} className="p-6 text-center text-sm text-[#A3AED0]">{t('stores.noProducts')}</td></tr>
-                    : products.map((p) => (
-                        <tr key={p.id} className="hover:bg-[#FAFAFA]">
-                          <td className="py-3.5 pr-4">
-                            <div className="flex items-center gap-3">
-                              {p.image
-                                ? <img src={p.image} alt={p.name} onError={e => { e.target.style.display = 'none' }}
-                                    className="h-9 w-9 rounded-lg object-cover shrink-0" />
-                                : <span className="text-2xl">{p.emoji}</span>}
-                              <span className="font-semibold text-[#1B2559]">
-                                {p.name}
-                                {p.description && <span className="block text-xs font-normal text-[#A3AED0]">{p.description}</span>}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-3.5 pr-4 text-[#A3AED0]">{p.category ?? '—'}</td>
-                          <td className="py-3.5 pr-4 font-bold text-[#1B2559]">ETB {parseFloat(p.price).toFixed(0)}</td>
-                          <td className="py-3.5 pr-4">
-                            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-600">{p.status}</span>
-                          </td>
-                          <td className="py-3.5">
-                            <div className="flex items-center gap-3">
-                              <button onClick={() => setEditingProduct(p)} className="text-[#A3AED0] hover:text-[#1B2559] transition-colors"><Edit size={15} /></button>
-                              <button onClick={() => removeProduct(p.id)} className="text-[#A3AED0] hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                }
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-[#E0E5F2] bg-white p-5 shadow-sm space-y-5">
-          <button onClick={() => setShowAddCategory(true)}
-            className="flex items-center gap-2 rounded-xl bg-[#F25C22] px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors">
-            <Plus size={15} /> {t('stores.addCategory')}
+          <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)}
+            className="rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm font-medium text-[#1B2559] outline-none focus:border-[#F25C22]">
+            {productCategories.map((c) => <option key={c}>{c}</option>)}
+          </select>
+          <button onClick={() => setShowAddProduct(true)}
+            className="flex items-center gap-2 rounded-xl bg-[#F25C22] px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-colors shrink-0">
+            <Plus size={15} /> {t('stores.addProduct')}
           </button>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {cLoading
-              ? <p className="text-sm text-[#A3AED0]">{t('stores.loading')}</p>
-              : categories.map((cat) => (
-                  <div key={cat.id} className="flex flex-col rounded-2xl border border-[#E0E5F2] bg-white p-4 shadow-sm">
-                    <div className="flex items-start justify-between">
-                      <span className="text-4xl">{cat.icon}</span>
-                      <div className="flex gap-2 text-[#A3AED0]">
-                        <button onClick={() => setEditingCategory(cat)} className="hover:text-[#1B2559] transition-colors"><Edit size={15} /></button>
-                        <button onClick={() => removeCategory(cat.id)} className="hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
-                      </div>
-                    </div>
-                    <h4 className="mt-3 text-sm font-bold text-[#1B2559]">{cat.name}</h4>
-                    <p className="text-xs text-[#A3AED0]">{cat.product_count} {t('stores.productsCount')}</p>
-                  </div>
-                ))
-            }
-          </div>
         </div>
-      )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#F4F7FE]">
+                <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.product')}</th>
+                <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.category')}</th>
+                <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.price')}</th>
+                <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('common.status')}</th>
+                <th className="pb-3 text-xs font-bold text-[#1B2559]">{t('stores.actions')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#F4F7FE]">
+              {pLoading
+                ? <tr><td colSpan={5} className="p-6 text-center text-sm text-[#A3AED0]">{t('stores.loadingProducts')}</td></tr>
+                : products.length === 0
+                  ? <tr><td colSpan={5} className="p-6 text-center text-sm text-[#A3AED0]">{t('stores.noProducts')}</td></tr>
+                  : products.map((p) => (
+                      <tr key={p.id} className="hover:bg-[#FAFAFA]">
+                        <td className="py-3.5 pr-4">
+                          <div className="flex items-center gap-3">
+                            {p.image
+                              ? <img src={p.image} alt={p.name} onError={e => { e.target.style.display = 'none' }}
+                                  className="h-9 w-9 rounded-lg object-cover shrink-0" />
+                              : <span className="text-2xl">{p.emoji}</span>}
+                            <span className="font-semibold text-[#1B2559]">
+                              {p.name}
+                              {p.description && <span className="block text-xs font-normal text-[#A3AED0]">{p.description}</span>}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 pr-4 text-[#A3AED0]">{p.category ?? '—'}</td>
+                        <td className="py-3.5 pr-4 font-bold text-[#1B2559]">ETB {parseFloat(p.price).toFixed(0)}</td>
+                        <td className="py-3.5 pr-4">
+                          <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-600">{p.status}</span>
+                        </td>
+                        <td className="py-3.5">
+                          <div className="flex items-center gap-3">
+                            <button onClick={() => setEditingProduct(p)} className="text-[#A3AED0] hover:text-[#1B2559] transition-colors"><Edit size={15} /></button>
+                            <button onClick={() => removeProduct(p.id)} className="text-[#A3AED0] hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {(showAddProduct || editingProduct) &&
         <AddProductModal storeId={storeId} categories={categories} initial={editingProduct}
           onClose={() => { setShowAddProduct(false); setEditingProduct(null) }} onSaved={refetchProducts} />}
-      {(showAddCategory || editingCategory) &&
-        <AddCategoryModal initial={editingCategory}
-          onClose={() => { setShowAddCategory(false); setEditingCategory(null) }} onSaved={refetchCategories} />}
     </div>
   )
 }

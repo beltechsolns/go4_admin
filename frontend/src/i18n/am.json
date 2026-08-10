@@ -47,10 +47,14 @@
     "riders": "አሽከሮች",
     "deliveries": "አቅርቦቶች",
     "storesAndProducts": "መደብሮች እና ምርቶች",
+    "categories": "ምድቦች",
     "liveTracking": "የቀጥታ ክትትል",
     "reportsAndAnalytics": "ሪፖርቶች እና ትንታኔ",
     "pricing": "ዋጋ አወጣጥ",
     "settings": "ቅንብሮች"
+  },
+  "categories": {
+    "subtitle": "ምድቦች በሁሉም ሬስቶራንቶች የሚጋሩ ናቸው"
   },
   "dashboard": {
     "overview": "ዳሽቦርድ አጠቃላይ እይታ",

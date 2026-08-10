@@ -47,10 +47,14 @@
     "riders": "Konkolaataa",
     "deliveries": "Dhaamsa",
     "storesAndProducts": "Suuqii fi Oomisha",
+    "categories": "Ramaddii",
     "liveTracking": "Hordoffii Yeroo Dhugaa",
     "reportsAndAnalytics": "Gabaasa fi Qorannoo",
     "pricing": "Gatii",
     "settings": "Sajoo"
+  },
+  "categories": {
+    "subtitle": "Ramaddoonni suuqii hunda waliin qoodamu"
   },
   "dashboard": {
     "overview": "Daa'ishboordii Iduu",

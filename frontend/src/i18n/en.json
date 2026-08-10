@@ -47,10 +47,14 @@
     "riders": "Riders",
     "deliveries": "Deliveries",
     "storesAndProducts": "Stores & Products",
+    "categories": "Categories",
     "liveTracking": "Live Tracking",
     "reportsAndAnalytics": "Reports & Analytics",
     "pricing": "Pricing",
     "settings": "Settings"
+  },
+  "categories": {
+    "subtitle": "Categories are shared across all restaurants"
   },
   "dashboard": {
     "overview": "Dashboard Overview",
