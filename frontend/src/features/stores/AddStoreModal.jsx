@@ -4,7 +4,7 @@ import Modal from '../../components/shared/Modal'
 import api from '../../api/client'
 
 const TYPES = ['Restaurant', 'Fast Food', 'Mini Market', 'Beverages', 'Cafe', 'Other']
-const EMPTY = { name: '', type: 'Restaurant', location: '', phone: '', image_url: '', description: '' }
+const EMPTY = { name: '', type: 'Restaurant', location: '', phone: '', image_url: '', description: '', latitude: '', longitude: '' }
 
 export default function AddStoreModal({ onClose, onSaved, initial }) {
   const { t } = useTranslation()
@@ -14,7 +14,7 @@ export default function AddStoreModal({ onClose, onSaved, initial }) {
   const [error, setError]   = useState('')
 
   useEffect(() => {
-    if (initial) setForm({ name: initial.name, type: initial.type, location: initial.location, phone: initial.phone, image_url: initial.image_url || '', description: initial.description || '' })
+    if (initial) setForm({ name: initial.name, type: initial.type, location: initial.location, phone: initial.phone, image_url: initial.image_url || '', description: initial.description || '', latitude: initial.latitude || '', longitude: initial.longitude || '' })
     else setForm(EMPTY)
   }, [initial])
 
@@ -90,6 +90,21 @@ export default function AddStoreModal({ onClose, onSaved, initial }) {
           <input value={form.image_url} onChange={e => set('image_url', e.target.value)}
             placeholder="https://..."
             className="w-full rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm outline-none focus:border-[#F25C22]" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-[#1B2559]">Latitude</label>
+            <input value={form.latitude} onChange={e => set('latitude', e.target.value)}
+              placeholder="Auto-filled from location"
+              className="w-full rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm outline-none focus:border-[#F25C22]" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-[#1B2559]">Longitude</label>
+            <input value={form.longitude} onChange={e => set('longitude', e.target.value)}
+              placeholder="Auto-filled from location"
+              className="w-full rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm outline-none focus:border-[#F25C22]" />
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-2">

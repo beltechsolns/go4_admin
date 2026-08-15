@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import { query } from '../config/db.js';
 import { fixItemImages, fixImages } from '../helpers/imageHelper.js';
 import { uploadToStorage } from '../helpers/storageHelper.js';
+import { geocodeLocation } from '../helpers/geocodeHelper.js';
 
 /**
  * GET /api/stores
@@ -88,17 +89,29 @@ export const getOne = async (req, res, next) => {
  */
 export const create = async (req, res, next) => {
   try {
-    const { name, type, location, phone, rating, image_url, description } = req.body;
+    const { name, type, location, phone, rating, image_url, description, latitude, longitude } = req.body;
 
     if (!name) {
       return res.status(400).json({ success: false, error: 'name is required.' });
     }
 
+    let lat = latitude || null;
+    let lng = longitude || null;
+
+    // Auto-geocode if location provided but lat/lng missing
+    if (location && (!lat || !lng)) {
+      const coords = await geocodeLocation(location);
+      if (coords) {
+        lat = coords.latitude;
+        lng = coords.longitude;
+      }
+    }
+
     const { rows } = await query(
-      `INSERT INTO stores (name, type, location, phone, rating, image_url, description)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO stores (name, type, location, phone, rating, image_url, description, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [name, type || 'Restaurant', location || null, phone || null, rating || 5.0, image_url || null, description || null]
+      [name, type || 'Restaurant', location || null, phone || null, rating || 5.0, image_url || null, description || null, lat, lng]
     );
 
     res.status(201).json({ success: true, data: rows[0] });
@@ -112,7 +125,19 @@ export const create = async (req, res, next) => {
  */
 export const update = async (req, res, next) => {
   try {
-    const { name, type, location, phone, rating, image_url, is_active, description } = req.body;
+    const { name, type, location, phone, rating, image_url, is_active, description, latitude, longitude } = req.body;
+
+    let lat = latitude || null;
+    let lng = longitude || null;
+
+    // Auto-geocode if location provided but lat/lng missing
+    if (location && (!lat || !lng)) {
+      const coords = await geocodeLocation(location);
+      if (coords) {
+        lat = coords.latitude;
+        lng = coords.longitude;
+      }
+    }
 
     const { rows } = await query(
       `UPDATE stores
@@ -125,10 +150,12 @@ export const update = async (req, res, next) => {
          image_url = COALESCE($6, image_url),
          is_active = COALESCE($7, is_active),
          description = COALESCE($8, description),
+         latitude = COALESCE($9, latitude),
+         longitude = COALESCE($10, longitude),
          updated_at = NOW()
-       WHERE id = $9
+       WHERE id = $11
        RETURNING *`,
-      [name, type, location, phone, rating, image_url, is_active, description, req.params.id]
+      [name, type, location, phone, rating, image_url, is_active, description, lat, lng, req.params.id]
     );
 
     if (!rows.length) {

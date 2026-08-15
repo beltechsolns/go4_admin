@@ -1,5 +1,6 @@
 import { query } from '../../config/db.js';
 import { fixImages, fixItemImages } from '../../helpers/imageHelper.js';
+import { haversineKm, computeEtaMinutes } from '../../helpers/geoHelper.js';
 
 export const getRestaurants = async (req, res, next) => {
   try {
@@ -78,6 +79,39 @@ export const rateRestaurant = async (req, res, next) => {
         rating: rows[0],
         average_rating: parseFloat(avg.rows[0].avg_rating),
         reviews_count: parseInt(avg.rows[0].count),
+      },
+    });
+  } catch (err) { next(err); }
+};
+
+export const estimateDeliveryTime = async (req, res, next) => {
+  try {
+    const { latitude, longitude } = req.body;
+    if (latitude == null || longitude == null)
+      return res.status(400).json({ success: false, message: 'latitude and longitude required' });
+
+    const { rows } = await query('SELECT id, name, latitude, longitude FROM stores WHERE id = $1 AND is_active = true', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ success: false, message: 'Restaurant not found' });
+
+    const store = rows[0];
+    if (!store.latitude || !store.longitude)
+      return res.json({ success: true, data: { distance_km: null, eta_minutes: null, message: 'Restaurant location not set' } });
+
+    const distance_km = haversineKm(
+      parseFloat(store.latitude),
+      parseFloat(store.longitude),
+      parseFloat(latitude),
+      parseFloat(longitude)
+    );
+
+    const eta_minutes = computeEtaMinutes(distance_km);
+
+    res.json({
+      success: true,
+      data: {
+        restaurant: { id: store.id, name: store.name },
+        distance_km: distance_km ? parseFloat(distance_km.toFixed(2)) : null,
+        eta_minutes,
       },
     });
   } catch (err) { next(err); }

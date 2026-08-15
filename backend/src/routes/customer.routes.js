@@ -118,6 +118,7 @@ router.get('/restaurants/:id/products', restaurants.getRestaurantProducts);
 router.put('/restaurants/:id/image', customerAuth, restaurants.updateRestaurantImage);
 router.post('/restaurants/:id/rate', customerAuth, restaurants.rateRestaurant);
 router.put('/restaurants/:id/rate', customerAuth, restaurants.rateRestaurant);
+router.post('/restaurants/:id/estimate-delivery', customerAuth, restaurants.estimateDeliveryTime);
 
 // Rider
 router.get('/rider/dashboard', customerAuth, roleMiddleware(['rider']), rider.getDashboard);
