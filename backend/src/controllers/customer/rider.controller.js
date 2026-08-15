@@ -1,6 +1,7 @@
 import { query } from '../../config/db.js';
 import { resolveRiderId } from '../../helpers/riderHelper.js';
 import { sendOrderStatusEmail } from '../../helpers/emailHelper.js';
+import { createNotification } from '../../helpers\notifyHelper.js';
 
 async function notifyOrderStatus(order, status) {
   try {
@@ -199,6 +200,16 @@ export const acceptOrder = async (req, res, next) => {
     if (!rows.length) return res.status(400).json({ success: false, message: 'Order not available' });
     rows[0].orderName = rows[0].order_name;
     notifyOrderStatus(rows[0], 'accepted');
+
+    // In-app notification to customer
+    if (rows[0].user_id) {
+      const { rows: rider } = await query('SELECT full_name FROM riders WHERE id = $1', [riderId]);
+      createNotification(rows[0].user_id, {
+        title: 'Rider Accepted',
+        message: `${rider[0]?.full_name || 'A rider'} has accepted your order "${rows[0].order_name}".`,
+      });
+    }
+
     res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
 };
@@ -230,6 +241,15 @@ export const completeDelivery = async (req, res, next) => {
     if (!rows.length) return res.status(400).json({ success: false, message: 'Order not found' });
     rows[0].orderName = rows[0].order_name;
     notifyOrderStatus(rows[0], 'delivered');
+
+    // In-app notification to customer
+    if (rows[0].user_id) {
+      createNotification(rows[0].user_id, {
+        title: 'Order Delivered',
+        message: `Your order "${rows[0].order_name}" has been delivered. Enjoy!`,
+      });
+    }
+
     res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
 };

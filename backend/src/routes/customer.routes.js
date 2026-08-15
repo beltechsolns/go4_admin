@@ -110,6 +110,8 @@ router.put('/address/current', customerAuth, locations.updateCurrentAddress);
 router.get('/notifications', customerAuth, notifications.getNotifications);
 router.put('/notifications/:id/read', customerAuth, notifications.markAsRead);
 router.put('/notifications/read-all', customerAuth, notifications.markAllAsRead);
+router.post('/notifications/register-token', customerAuth, notifications.registerDeviceToken);
+router.post('/notifications/remove-token', customerAuth, notifications.removeDeviceToken);
 
 // Restaurants
 router.get('/restaurants', restaurants.getRestaurants);

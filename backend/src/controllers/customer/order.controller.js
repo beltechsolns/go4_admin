@@ -2,6 +2,7 @@ import { query } from '../../config/db.js';
 import { haversineKm, computeEtaMinutes, hasArrived } from '../../helpers/geoHelper.js';
 import { fixItemImages } from '../../helpers/imageHelper.js';
 import { sendOrderConfirmationEmail, sendOrderStatusEmail } from '../../helpers/emailHelper.js';
+import { notifyUser, createNotification } from '../../helpers\notifyHelper.js';
 
 export const createOrder = async (req, res, next) => {
   try {
@@ -65,6 +66,25 @@ export const createOrder = async (req, res, next) => {
       await sendOrderConfirmationEmail({ to: user[0].email, name: user[0].name, order: fullOrder });
     } catch (mailErr) {
       console.error('[OrderEmail] Confirmation send failed:', mailErr.message);
+    }
+
+    // In-app notification to customer
+    createNotification(req.user.id, {
+      title: 'Order Placed',
+      message: `Your order "${orderName}" has been placed successfully. Total: ETB ${totalPrice.toFixed(2)}`,
+    });
+
+    // Notify admin users about new order
+    try {
+      const { rows: admins } = await query("SELECT id FROM users WHERE role = 'admin'");
+      for (const admin of admins) {
+        createNotification(admin.id, {
+          title: 'New Order',
+          message: `New order "${orderName}" from ${user[0].name}. Total: ETB ${totalPrice.toFixed(2)}`,
+        });
+      }
+    } catch (e) {
+      console.error('[OrderNotify] Admin notify failed:', e.message);
     }
 
     res.status(201).json({ success: true, data: fullOrder });

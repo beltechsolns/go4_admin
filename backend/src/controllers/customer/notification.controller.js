@@ -53,3 +53,27 @@ export const markAllAsRead = async (req, res, next) => {
     res.json({ success: true, message: 'All notifications marked as read', unread_count: 0 });
   } catch (err) { next(err); }
 };
+
+export const registerDeviceToken = async (req, res, next) => {
+  try {
+    const { token, platform } = req.body;
+    if (!token) return res.status(400).json({ success: false, message: 'Token required' });
+
+    await query(
+      'INSERT INTO device_tokens (user_id, token, platform) VALUES ($1, $2, $3) ON CONFLICT (user_id, token) DO UPDATE SET platform = EXCLUDED.platform',
+      [req.user.id, token, platform || 'android']
+    );
+
+    res.json({ success: true, message: 'Device token registered' });
+  } catch (err) { next(err); }
+};
+
+export const removeDeviceToken = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ success: false, message: 'Token required' });
+
+    await query('DELETE FROM device_tokens WHERE user_id = $1 AND token = $2', [req.user.id, token]);
+    res.json({ success: true, message: 'Device token removed' });
+  } catch (err) { next(err); }
+};
