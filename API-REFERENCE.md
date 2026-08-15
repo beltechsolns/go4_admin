@@ -94,6 +94,7 @@ When creating a product, `category_id` refers to this global list.
 | PUT | /profile | ✔ | body: name, phone |
 | POST | /profile/avatar | ✔ | multipart `avatar` |
 | PUT | /profile/avatar-url | ✔ | body: avatar_url |
+| DELETE | /profile/avatar | ✔ | removes the profile picture |
 | GET | /favorites | ✔ | |
 | POST | /favorites | ✔ | |
 | POST | /favorites/:product_id | ✔ | |

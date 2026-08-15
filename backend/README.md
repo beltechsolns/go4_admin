@@ -90,6 +90,8 @@ Authorization: Bearer <token>
 | Method | Path                        | Description             |
 |--------|-----------------------------|-------------------------|
 | POST   | /api/auth/login             | Login, get JWT token    |
+| POST   | /api/auth/forgot-password   | Send reset link email   |
+| POST   | /api/auth/reset-password    | Reset password by token |
 | GET    | /api/auth/me                | Get current admin info  |
 | PUT    | /api/auth/change-password   | Change password         |
 

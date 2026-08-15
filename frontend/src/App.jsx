@@ -2,6 +2,8 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Sidebar from './components/layout/Sidebar'
 import { ROUTES } from './constants/routes'
 import LoginPage from './pages/LoginPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import CustomersPage from './pages/CustomersPage'
 import DashboardPage from './pages/DashboardPage'
 import DeliveriesPage from './pages/DeliveriesPage'
@@ -20,17 +22,21 @@ function ProtectedRoute({ children }) {
 }
 
 export default function App() {
-  const isLoginPage = useLocation().pathname === ROUTES.login
+  const pathname = useLocation().pathname
+  const isAuthPage = [ROUTES.login, ROUTES.forgotPassword, ROUTES.resetPassword].includes(pathname)
   const token = localStorage.getItem('token')
 
-  if (isLoginPage && token) {
+  if (pathname === ROUTES.login && token) {
     return <Navigate to={ROUTES.dashboard} replace />
   }
 
-  if (isLoginPage) {
+  if (isAuthPage) {
     return (
       <Routes>
         <Route path={ROUTES.login} element={<LoginPage />} />
+        <Route path={ROUTES.forgotPassword} element={<ForgotPasswordPage />} />
+        <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
+        <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
       </Routes>
     )
   }

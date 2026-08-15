@@ -17,8 +17,8 @@ export const APP_BASE_URL = process.env.APP_BASE_URL || 'https://go4-app.example
 /**
  * Send a password reset email containing a link the user can open to reset their password.
  */
-export async function sendPasswordResetEmail({ to, resetToken }) {
-  const link = `${APP_BASE_URL}/reset-password?token=${resetToken}`;
+export async function sendPasswordResetEmail({ to, resetToken, resetUrl }) {
+  const link = resetUrl || `${APP_BASE_URL}/reset-password?token=${resetToken}`;
 
   const info = await transporter.sendMail({
     from: FROM_EMAIL,

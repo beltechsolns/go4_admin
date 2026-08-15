@@ -88,6 +88,7 @@ router.get('/profile', customerAuth, profile.getProfile);
 router.put('/profile', customerAuth, profile.updateProfile);
 router.post('/profile/avatar', customerAuth, upload.single('avatar'), profile.uploadAvatar);
 router.put('/profile/avatar-url', customerAuth, profile.setAvatarUrl);
+router.delete('/profile/avatar', customerAuth, profile.deleteAvatar);
 
 // Favorites
 router.get('/favorites', customerAuth, favorites.getFavorites);
@@ -116,6 +117,7 @@ router.get('/restaurants/:id', restaurants.getRestaurantByID);
 router.get('/restaurants/:id/products', restaurants.getRestaurantProducts);
 router.put('/restaurants/:id/image', customerAuth, restaurants.updateRestaurantImage);
 router.post('/restaurants/:id/rate', customerAuth, restaurants.rateRestaurant);
+router.put('/restaurants/:id/rate', customerAuth, restaurants.rateRestaurant);
 
 // Rider
 router.get('/rider/dashboard', customerAuth, roleMiddleware(['rider']), rider.getDashboard);

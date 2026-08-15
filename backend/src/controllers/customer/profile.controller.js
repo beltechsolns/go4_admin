@@ -48,3 +48,14 @@ export const setAvatarUrl = async (req, res, next) => {
     res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
 };
+
+export const deleteAvatar = async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      'UPDATE users SET avatar = NULL, updated_at = NOW() WHERE id = $1 RETURNING id, name, email, phone, role, avatar, created_at',
+      [req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, message: 'User not found' });
+    res.json({ success: true, data: rows[0] });
+  } catch (err) { next(err); }
+};

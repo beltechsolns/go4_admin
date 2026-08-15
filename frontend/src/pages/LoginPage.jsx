@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ROUTES } from '../constants/routes'
 import api from '../api/client'
 import brandLogo from '../assets/brand.png'
@@ -64,6 +64,14 @@ export default function LoginPage() {
               required
               className="w-full rounded-xl border border-[#E0E5F2] px-4 py-2.5 text-sm text-[#1B2559] outline-none transition-colors focus:border-[#F25C22]"
             />
+            <div className="mt-2 text-right">
+              <Link
+                to={ROUTES.forgotPassword}
+                className="text-xs font-semibold text-[#F25C22] transition-colors hover:text-orange-600"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </div>
 
           <button
