@@ -9,10 +9,28 @@ export const createOrder = async (req, res, next) => {
     const { items, delivery_address, notes, pickup_address, delivery_lat, delivery_lng } = req.body;
     if (!items || !items.length)
       return res.status(400).json({ success: false, message: 'Items required' });
-    if (!delivery_address)
-      return res.status(400).json({ success: false, message: 'Delivery address required' });
 
     const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [req.user.id]);
+
+    // Resolve delivery location: use provided lat/lng, or fallback to saved default location
+    let resolvedAddress = delivery_address || '';
+    let resolvedLat = delivery_lat || null;
+    let resolvedLng = delivery_lng || null;
+
+    if (!resolvedLat || !resolvedLng) {
+      const { rows: savedLoc } = await query(
+        "SELECT latitude, longitude, address FROM user_locations WHERE user_id = $1 AND is_default = true LIMIT 1",
+        [req.user.id]
+      );
+      if (savedLoc.length) {
+        resolvedLat = resolvedLat || savedLoc[0].latitude;
+        resolvedLng = resolvedLng || savedLoc[0].longitude;
+        resolvedAddress = resolvedAddress || savedLoc[0].address || '';
+      }
+    }
+
+    if (!resolvedAddress)
+      return res.status(400).json({ success: false, message: 'Delivery address required' });
 
     const productIds = items.map(i => i.product_id).filter(Boolean);
     let orderName = `Order #${Date.now().toString(36).toUpperCase()}`;
@@ -39,7 +57,7 @@ export const createOrder = async (req, res, next) => {
 
     const { rows: [order] } = await query(
       'INSERT INTO customer_orders (user_id, store_id, order_name, user_name, total_price, delivery_address, pickup_address, delivery_lat, delivery_lng, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
-      [req.user.id, storeId, orderName, user[0].name, totalPrice, delivery_address, resolvedPickup, delivery_lat || null, delivery_lng || null, notes || '']
+      [req.user.id, storeId, orderName, user[0].name, totalPrice, resolvedAddress, resolvedPickup, resolvedLat, resolvedLng, notes || '']
     );
 
     for (const item of items) {
