@@ -2,6 +2,7 @@ import { query } from '../../config/db.js';
 import { resolveRiderId } from '../../helpers/riderHelper.js';
 import { sendOrderStatusEmail } from '../../helpers/emailHelper.js';
 import { createNotification } from '../../helpers\notifyHelper.js';
+import { haversineKm } from '../../helpers/geoHelper.js';
 
 async function notifyOrderStatus(order, status) {
   try {
@@ -95,11 +96,14 @@ export const getAvailableOrders = async (req, res, next) => {
     const total = parseInt(count.rows[0].total);
 
     const { rows } = await query(
-      `SELECT co.id, co.order_name, co.total_price, co.delivery_address, co.pickup_address, co.notes, co.created_at,
+      `SELECT co.id, co.order_name, co.total_price, co.delivery_address, co.pickup_address,
+        co.delivery_lat, co.delivery_lng, co.notes, co.created_at,
         u.name AS user_name, u.phone AS user_phone,
+        s.name AS store_name, s.location AS store_location, s.latitude AS store_lat, s.longitude AS store_lng, s.phone AS store_phone,
         (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = co.id) AS items_count
       FROM customer_orders co
       LEFT JOIN users u ON u.id = co.user_id
+      LEFT JOIN stores s ON s.id = co.store_id
       WHERE co.status = $1
       ORDER BY co.created_at DESC LIMIT $2 OFFSET $3`,
       ['pending', parseInt(limit), offset]
@@ -176,7 +180,13 @@ export const getCompletedOrders = async (req, res, next) => {
 
 export const getRiderOrderById = async (req, res, next) => {
   try {
-    const { rows: [order] } = await query('SELECT * FROM customer_orders WHERE id = $1', [req.params.id]);
+    const { rows: [order] } = await query(
+      `SELECT co.*, s.name AS store_name, s.location AS store_location, s.latitude AS store_lat, s.longitude AS store_lng, s.phone AS store_phone
+      FROM customer_orders co
+      LEFT JOIN stores s ON s.id = co.store_id
+      WHERE co.id = $1`,
+      [req.params.id]
+    );
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
     const { rows: items } = await query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
@@ -185,6 +195,22 @@ export const getRiderOrderById = async (req, res, next) => {
     order.items_count = items.length;
 
     res.json({ success: true, data: order });
+  } catch (err) { next(err); }
+};
+
+export const rejectOrder = async (req, res, next) => {
+  try {
+    const riderId = await resolveRiderId(req.user.id);
+    if (!riderId) return res.status(404).json({ success: false, message: 'Rider profile not found' });
+
+    const { rows } = await query(
+      "SELECT * FROM customer_orders WHERE id = $1 AND status = 'pending'",
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(400).json({ success: false, message: 'Order not available' });
+
+    // Rider simply doesn't accept - order stays pending for other riders
+    res.json({ success: true, message: 'Order rejected', data: { id: rows[0].id, status: 'pending' } });
   } catch (err) { next(err); }
 };
 
@@ -234,23 +260,8 @@ export const completeDelivery = async (req, res, next) => {
     const riderId = await resolveRiderId(req.user.id);
     if (!riderId) return res.status(404).json({ success: false, message: 'Rider profile not found' });
 
-    const { rows } = await query(
-      "UPDATE customer_orders SET status = 'delivered', updated_at = NOW() WHERE id = $1 AND rider_id = $2 RETURNING *",
-      [req.params.id, riderId]
-    );
-    if (!rows.length) return res.status(400).json({ success: false, message: 'Order not found' });
-    rows[0].orderName = rows[0].order_name;
-    notifyOrderStatus(rows[0], 'delivered');
-
-    // In-app notification to customer
-    if (rows[0].user_id) {
-      createNotification(rows[0].user_id, {
-        title: 'Order Delivered',
-        message: `Your order "${rows[0].order_name}" has been delivered. Enjoy!`,
-      });
-    }
-
-    res.json({ success: true, data: rows[0] });
+    // Rider cannot complete delivery - only customer can
+    return res.status(403).json({ success: false, message: 'Only customer can confirm delivery' });
   } catch (err) { next(err); }
 };
 
@@ -274,6 +285,45 @@ export const updateLocation = async (req, res, next) => {
       'UPDATE riders SET current_lat = $1, current_lng = $2, updated_at = NOW() WHERE id = $3 RETURNING *',
       [latitude, longitude, riderId]
     );
+
+    // Check if rider is near customer (within 50m) for active orders → auto-complete
+    const { rows: activeOrders } = await query(
+      "SELECT id, user_id, order_name, delivery_lat, delivery_lng FROM customer_orders WHERE rider_id = $1 AND status = 'in_transit'",
+      [riderId]
+    );
+
+    for (const order of activeOrders) {
+      if (order.delivery_lat && order.delivery_lng) {
+        const distance = haversineKm(
+          parseFloat(latitude),
+          parseFloat(longitude),
+          parseFloat(order.delivery_lat),
+          parseFloat(order.delivery_lng)
+        );
+
+        if (distance !== null && distance <= 0.05) {
+          await query(
+            "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE id = $1",
+            [order.id]
+          );
+
+          createNotification(order.user_id, {
+            title: 'Order Delivered',
+            message: `Your order "${order.order_name}" has been delivered. Enjoy!`,
+          });
+
+          try {
+            const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [order.user_id]);
+            if (user.length && user[0].email) {
+              await sendOrderStatusEmail({ to: user[0].email, name: user[0].name, order, status: 'delivered' });
+            }
+          } catch (e) {
+            console.error('[OrderEmail] Delivered notification failed:', e.message);
+          }
+        }
+      }
+    }
+
     res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
 };

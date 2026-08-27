@@ -82,6 +82,7 @@ router.get('/orders/:id/tracking', customerAuth, orders.trackOrder);
 router.post('/orders/:id/rate-driver', customerAuth, orders.rateDriver);
 router.put('/orders/:id/status', customerAuth, orders.updateOrderStatus);
 router.put('/orders/:id/cancel', customerAuth, orders.cancelOrder);
+router.put('/orders/:id/confirm-delivery', customerAuth, orders.confirmDelivery);
 
 // Profile
 router.get('/profile', customerAuth, profile.getProfile);
@@ -105,6 +106,7 @@ router.post('/location', customerAuth, locations.saveLocation);
 router.put('/location/:id', customerAuth, locations.updateLocation);
 router.get('/address/current', customerAuth, locations.getCurrentAddress);
 router.put('/address/current', customerAuth, locations.updateCurrentAddress);
+router.post('/device-location', customerAuth, locations.receiveDeviceLocation);
 
 // Notifications
 router.get('/notifications', customerAuth, notifications.getNotifications);
@@ -131,6 +133,7 @@ router.get('/rider/orders/active', customerAuth, roleMiddleware(['rider']), ride
 router.get('/rider/orders/completed', customerAuth, roleMiddleware(['rider']), rider.getCompletedOrders);
 router.get('/rider/orders/:id', customerAuth, roleMiddleware(['rider']), rider.getRiderOrderById);
 router.put('/rider/orders/:id/accept', customerAuth, roleMiddleware(['rider']), rider.acceptOrder);
+router.put('/rider/orders/:id/reject', customerAuth, roleMiddleware(['rider']), rider.rejectOrder);
 router.put('/rider/orders/:id/start', customerAuth, roleMiddleware(['rider']), rider.startDelivery);
 router.put('/rider/orders/:id/complete', customerAuth, roleMiddleware(['rider']), rider.completeDelivery);
 router.post('/rider/location', customerAuth, roleMiddleware(['rider']), rider.updateLocation);

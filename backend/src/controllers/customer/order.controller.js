@@ -12,14 +12,14 @@ export const createOrder = async (req, res, next) => {
 
     const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [req.user.id]);
 
-    // Resolve delivery location: use provided lat/lng, or fallback to saved default location
+    // Resolve delivery location: use provided lat/lng, or fallback to current location
     let resolvedAddress = delivery_address || '';
     let resolvedLat = delivery_lat || null;
     let resolvedLng = delivery_lng || null;
 
     if (!resolvedLat || !resolvedLng) {
       const { rows: savedLoc } = await query(
-        "SELECT latitude, longitude, address FROM user_locations WHERE user_id = $1 AND is_default = true LIMIT 1",
+        "SELECT latitude, longitude, address FROM user_locations WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 1",
         [req.user.id]
       );
       if (savedLoc.length) {
@@ -265,10 +265,40 @@ export const trackOrder = async (req, res, next) => {
     let rider = null;
     if (order.rider_id) {
       const { rows: [r] } = await query(
-        'SELECT id, full_name, phone, vehicle_type, status, current_lat, current_lng FROM riders WHERE id = $1',
+        'SELECT id, full_name, phone, vehicle_type, status, current_lat, current_lng, updated_at FROM riders WHERE id = $1',
         [order.rider_id]
       );
       rider = r || null;
+
+      // Check if rider is offline for more than 30 minutes → auto-cancel
+      if (rider && rider.status === 'Offline' && order.status === 'in_transit') {
+        const riderLastUpdate = new Date(rider.updated_at);
+        const now = new Date();
+        const minutesOffline = (now - riderLastUpdate) / (1000 * 60);
+
+        if (minutesOffline > 30) {
+          await query(
+            "UPDATE customer_orders SET status = 'cancelled', updated_at = NOW() WHERE id = $1",
+            [order.id]
+          );
+          order.status = 'cancelled';
+
+          // Notify customer
+          createNotification(order.user_id, {
+            title: 'Order Cancelled',
+            message: `Your order "${order.order_name}" has been cancelled because the rider went offline.`,
+          });
+
+          try {
+            const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [order.user_id]);
+            if (user.length && user[0].email) {
+              await sendOrderStatusEmail({ to: user[0].email, name: user[0].name, order, status: 'cancelled' });
+            }
+          } catch (e) {
+            console.error('[OrderEmail] Cancel notification failed:', e.message);
+          }
+        }
+      }
     }
 
     // Distance & ETA from rider to delivery point
@@ -365,5 +395,32 @@ export const rateDriver = async (req, res, next) => {
         reviews_count: parseInt(avg.rows[0].count),
       },
     });
+  } catch (err) { next(err); }
+};
+
+export const confirmDelivery = async (req, res, next) => {
+  try {
+    const { rows: [order] } = await query(
+      'SELECT * FROM customer_orders WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.status === 'delivered') return res.status(400).json({ success: false, message: 'Order already delivered' });
+    if (order.status !== 'in_transit') return res.status(400).json({ success: false, message: 'Order must be in transit to confirm' });
+
+    const { rows } = await query(
+      "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE id = $1 RETURNING *",
+      [req.params.id]
+    );
+    rows[0].orderName = rows[0].order_name;
+    notifyOrderStatus(rows[0], 'delivered');
+
+    // In-app notification to customer
+    createNotification(req.user.id, {
+      title: 'Order Delivered',
+      message: `Your order "${rows[0].order_name}" has been delivered. Enjoy!`,
+    });
+
+    res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
 };
