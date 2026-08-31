@@ -6,11 +6,18 @@ import { notifyUser, createNotification } from '../../helpers\notifyHelper.js';
 
 export const createOrder = async (req, res, next) => {
   try {
-    const { items, delivery_address, notes, pickup_address, delivery_lat, delivery_lng } = req.body;
+    const { items, delivery_address, notes, pickup_address, delivery_lat, delivery_lng, restaurant_id } = req.body;
     if (!items || !items.length)
       return res.status(400).json({ success: false, message: 'Items required' });
+    if (!restaurant_id)
+      return res.status(400).json({ success: false, message: 'restaurant_id required' });
 
     const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [req.user.id]);
+
+    // Verify restaurant exists
+    const { rows: store } = await query('SELECT id, name, location, latitude, longitude FROM stores WHERE id = $1 AND is_active = true', [restaurant_id]);
+    if (!store.length)
+      return res.status(404).json({ success: false, message: 'Restaurant not found' });
 
     // Resolve delivery location: use provided lat/lng, or fallback to current location
     let resolvedAddress = delivery_address || '';
@@ -32,32 +39,21 @@ export const createOrder = async (req, res, next) => {
     if (!resolvedAddress)
       return res.status(400).json({ success: false, message: 'Delivery address required' });
 
-    const productIds = items.map(i => i.product_id).filter(Boolean);
-    let orderName = `Order #${Date.now().toString(36).toUpperCase()}`;
-    let storeId = null;
-    let resolvedPickup = pickup_address || '';
+    let resolvedPickup = pickup_address || store[0].location || '';
 
-    if (productIds.length) {
-      const { rows: products } = await query('SELECT id, name, store_id, price FROM products WHERE id = ANY($1::int[])', [productIds]);
-      if (products.length) {
-        const names = products.map(p => p.name).filter(Boolean);
-        orderName = names.slice(0, 2).join(', ') + (names.length > 2 ? ` +${names.length - 2} more` : '');
-        storeId = products[0].store_id;
-      }
-
-      if (!resolvedPickup && storeId) {
-        const { rows: store } = await query('SELECT location FROM stores WHERE id = $1', [storeId]);
-        if (store.length && store[0].location) {
-          resolvedPickup = store[0].location;
-        }
-      }
+    if (!resolvedPickup && store[0].location) {
+      resolvedPickup = store[0].location;
     }
 
     const totalPrice = items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity || 1), 0);
 
+    // Generate order name: "RestaurantName Order #X"
+    const orderNum = Date.now().toString(36).toUpperCase();
+    orderName = `${store[0].name} Order #${orderNum}`;
+
     const { rows: [order] } = await query(
       'INSERT INTO customer_orders (user_id, store_id, order_name, user_name, total_price, delivery_address, pickup_address, delivery_lat, delivery_lng, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
-      [req.user.id, storeId, orderName, user[0].name, totalPrice, resolvedAddress, resolvedPickup, resolvedLat, resolvedLng, notes || '']
+      [req.user.id, restaurant_id, orderName, user[0].name, totalPrice, resolvedAddress, resolvedPickup, resolvedLat, resolvedLng, notes || '']
     );
 
     for (const item of items) {

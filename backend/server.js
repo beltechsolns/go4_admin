@@ -20,6 +20,7 @@ import pricingRoutes from './src/routes/pricing.routes.js';
 import settingsRoutes from './src/routes/settings.routes.js';
 import trackingRoutes from './src/routes/tracking.routes.js';
 import customerRoutes from './src/routes/customer.routes.js';
+import ordersRoutes from './src/routes/orders.routes.js';
 
 dotenv.config();
 
@@ -75,6 +76,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/pricing', pricingRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/tracking', trackingRoutes);
+app.use('/api/orders', ordersRoutes);
 
 // Customer-facing API (merged from Flutter app backend)
 app.use('/api/v1', customerRoutes);
