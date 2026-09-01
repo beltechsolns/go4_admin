@@ -8,7 +8,7 @@ router.use(auth);
 // GET /api/orders — Admin sees all orders
 router.get('/', async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, status, store_id } = req.query;
+    const { page = 1, limit = 20, status, store_id, search } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const conditions = [];
     const params = [];
@@ -22,6 +22,11 @@ router.get('/', async (req, res, next) => {
     if (store_id) {
       conditions.push(`co.store_id = $${idx}`);
       params.push(store_id);
+      idx++;
+    }
+    if (search) {
+      conditions.push(`(co.order_name ILIKE $${idx} OR u.name ILIKE $${idx} OR u.phone ILIKE $${idx})`);
+      params.push(`%${search}%`);
       idx++;
     }
 

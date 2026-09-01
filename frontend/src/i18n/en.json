@@ -45,6 +45,7 @@
     "userManagement": "User Management",
     "customers": "Customers",
     "riders": "Riders",
+    "orders": "Orders",
     "deliveries": "Deliveries",
     "storesAndProducts": "Stores & Products",
     "categories": "Categories",
@@ -154,6 +155,25 @@
     "failedToAdd": "Failed to add rider.",
     "toggleStatus": "Toggle status",
     "removeRider": "Remove rider"
+  },
+  "orders": {
+    "management": "Order Management",
+    "orderName": "Order Name",
+    "customer": "Customer",
+    "store": "Store",
+    "items": "Items",
+    "totalPrice": "Total Price",
+    "status": "Status",
+    "createdAt": "Created At",
+    "pending": "Pending",
+    "accepted": "Accepted",
+    "pickedUp": "Picked Up",
+    "inTransit": "In Transit",
+    "delivered": "Delivered",
+    "cancelled": "Cancelled",
+    "search": "Search by order name or customer...",
+    "allStatus": "All Status",
+    "noOrders": "No orders found"
   },
   "deliveries": {
     "management": "Delivery Management",

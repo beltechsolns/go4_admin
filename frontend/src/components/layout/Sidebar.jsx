@@ -6,6 +6,7 @@ import {
   LogOut,
   MapPin,
   Menu,
+  ShoppingBag,
   Settings,
   Store,
   Tags,
@@ -39,6 +40,7 @@ function NavContent({ onToggleUserMenu, onClose }) {
   }
 
   const navItems = [
+    { to: ROUTES.orders, text: t('sidebar.orders'), icon: ShoppingBag },
     { to: ROUTES.deliveries, text: t('sidebar.deliveries'), icon: Truck },
     { to: ROUTES.stores, text: t('sidebar.storesAndProducts'), icon: Store },
     { to: ROUTES.categories, text: t('sidebar.categories'), icon: Tags },

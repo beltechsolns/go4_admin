@@ -7,6 +7,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import CustomersPage from './pages/CustomersPage'
 import DashboardPage from './pages/DashboardPage'
 import DeliveriesPage from './pages/DeliveriesPage'
+import OrdersPage from './pages/OrdersPage'
 import LiveTrackingPage from './pages/LiveTrackingPage'
 import PricingPage from './pages/PricingPage'
 import ReportsPage from './pages/ReportsPage'
@@ -52,6 +53,7 @@ export default function App() {
           <Route path={ROUTES.customers} element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
           <Route path={ROUTES.riders} element={<ProtectedRoute><RidersPage /></ProtectedRoute>} />
           <Route path={ROUTES.deliveries} element={<ProtectedRoute><DeliveriesPage /></ProtectedRoute>} />
+          <Route path={ROUTES.orders} element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
           <Route path={ROUTES.stores} element={<ProtectedRoute><StoresPage /></ProtectedRoute>} />
           <Route path={`${ROUTES.stores}/:storeSlug`} element={<ProtectedRoute><StoresPage /></ProtectedRoute>} />
           <Route path={ROUTES.categories} element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />

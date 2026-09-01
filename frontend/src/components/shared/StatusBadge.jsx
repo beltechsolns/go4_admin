@@ -6,8 +6,11 @@ const styles = {
   Busy: 'bg-[#FFF9E6] text-[#FFB800]',
   Delivered: 'bg-[#E6F9F0] text-[#05CD99]',
   Pending: 'bg-[#FFF9E6] text-[#FFB800]',
+  Accepted: 'bg-[#E6EFFA] text-[#3377FF]',
   'Picked Up': 'bg-[#F2EBF9] text-[#A65EE3]',
   'In Transit': 'bg-[#E6EFFA] text-[#3377FF]',
+  Cancelled: 'bg-[#FEE2E2] text-[#DC2626]',
+  Failed: 'bg-[#FEE2E2] text-[#DC2626]',
 }
 
 export default function StatusBadge({ label }) {

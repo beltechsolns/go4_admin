@@ -1,0 +1,34 @@
+import { Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+
+export default function OrdersToolbar({ search, status, onSearch, onStatus }) {
+  const { t } = useTranslation()
+
+  return (
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="relative w-full max-w-sm">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A3AED0]" size={16} />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+          placeholder={t('orders.search')}
+          className="w-full rounded-xl border border-[#E0E5F2] bg-white py-2 pl-10 pr-4 text-sm text-[#1B2559] focus:border-[#F25C22] focus:outline-none"
+        />
+      </div>
+      <select
+        value={status}
+        onChange={(e) => onStatus(e.target.value)}
+        className="rounded-xl border border-[#E0E5F2] px-4 py-2 text-sm font-semibold text-[#1B2559] outline-none"
+      >
+        <option value="">{t('orders.allStatus')}</option>
+        <option value="pending">{t('orders.pending')}</option>
+        <option value="accepted">{t('orders.accepted')}</option>
+        <option value="picked_up">{t('orders.pickedUp')}</option>
+        <option value="in_transit">{t('orders.inTransit')}</option>
+        <option value="delivered">{t('orders.delivered')}</option>
+        <option value="cancelled">{t('orders.cancelled')}</option>
+      </select>
+    </div>
+  )
+}
