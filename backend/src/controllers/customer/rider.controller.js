@@ -1,7 +1,7 @@
 import { query } from '../../config/db.js';
 import { resolveRiderId } from '../../helpers/riderHelper.js';
 import { sendOrderStatusEmail } from '../../helpers/emailHelper.js';
-import { createNotification } from '../../helpers\notifyHelper.js';
+import { createNotification } from '../../helpers/notifyHelper.js';
 import { haversineKm } from '../../helpers/geoHelper.js';
 
 async function notifyOrderStatus(order, status) {

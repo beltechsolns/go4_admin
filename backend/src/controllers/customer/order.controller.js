@@ -2,7 +2,7 @@ import { query } from '../../config/db.js';
 import { haversineKm, computeEtaMinutes, hasArrived } from '../../helpers/geoHelper.js';
 import { fixItemImages } from '../../helpers/imageHelper.js';
 import { sendOrderConfirmationEmail, sendOrderStatusEmail } from '../../helpers/emailHelper.js';
-import { notifyUser, createNotification } from '../../helpers\notifyHelper.js';
+import { notifyUser, createNotification } from '../../helpers/notifyHelper.js';
 
 export const createOrder = async (req, res, next) => {
   try {
