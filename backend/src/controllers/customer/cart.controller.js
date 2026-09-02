@@ -15,24 +15,6 @@ export const addToCart = async (req, res, next) => {
     const { product_id, quantity = 1 } = req.body;
     if (!product_id) return res.status(400).json({ success: false, message: 'product_id required' });
 
-    const { rows: product } = await query('SELECT store_id FROM products WHERE id = $1', [product_id]);
-    if (!product.length) return res.status(404).json({ success: false, message: 'Product not found' });
-
-    const { rows: cartItems } = await query(
-      'SELECT ci.id, ci.quantity, p.store_id FROM cart_items ci LEFT JOIN products p ON p.id = ci.product_id WHERE ci.user_id = $1',
-      [req.user.id]
-    );
-
-    if (cartItems.length) {
-      const currentStoreId = cartItems[0].store_id;
-      if (currentStoreId && currentStoreId !== product[0].store_id) {
-        return res.status(400).json({
-          success: false,
-          message: 'You can only order from one restaurant at a time. Clear your cart first to add items from a different restaurant.',
-        });
-      }
-    }
-
     const existing = await query(
       'SELECT id, quantity FROM cart_items WHERE user_id = $1 AND product_id = $2',
       [req.user.id, product_id]

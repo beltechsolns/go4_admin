@@ -6,20 +6,13 @@ import { notifyUser, createNotification } from '../../helpers\notifyHelper.js';
 
 export const createOrder = async (req, res, next) => {
   try {
-    const { items, delivery_address, notes, pickup_address, delivery_lat, delivery_lng, restaurant_id } = req.body;
+    const { items, delivery_address, notes, pickup_address, delivery_lat, delivery_lng } = req.body;
     if (!items || !items.length)
       return res.status(400).json({ success: false, message: 'Items required' });
-    if (!restaurant_id)
-      return res.status(400).json({ success: false, message: 'restaurant_id required' });
 
     const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [req.user.id]);
 
-    // Verify restaurant exists
-    const { rows: store } = await query('SELECT id, name, location, latitude, longitude FROM stores WHERE id = $1 AND is_active = true', [restaurant_id]);
-    if (!store.length)
-      return res.status(404).json({ success: false, message: 'Restaurant not found' });
-
-    // Resolve delivery location: use provided lat/lng, or fallback to current location
+    // Resolve delivery location
     let resolvedAddress = delivery_address || '';
     let resolvedLat = delivery_lat || null;
     let resolvedLng = delivery_lng || null;
@@ -39,83 +32,95 @@ export const createOrder = async (req, res, next) => {
     if (!resolvedAddress)
       return res.status(400).json({ success: false, message: 'Delivery address required' });
 
-    let resolvedPickup = pickup_address || store[0].location || '';
-
-    if (!resolvedPickup && store[0].location) {
-      resolvedPickup = store[0].location;
-    }
-
-    const totalPrice = items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity || 1), 0);
-
-    // Verify all items belong to the same restaurant
+    // Look up all products to get their store_id
     const productIds = items.map(i => i.product_id);
     const { rows: products } = await query(
-      `SELECT id, store_id FROM products WHERE id = ANY($1)`,
+      `SELECT id, name, image, store_id, price FROM products WHERE id = ANY($1)`,
       [productIds]
     );
-    const wrongStore = products.find(p => p.store_id !== parseInt(restaurant_id));
-    if (wrongStore) {
-      return res.status(400).json({ success: false, message: 'All items must be from the same restaurant' });
-    }
-    if (products.length !== productIds.length) {
+    if (products.length !== productIds.length)
       return res.status(400).json({ success: false, message: 'Some products were not found' });
+
+    // Group items by store_id
+    const itemsByStore = {};
+    for (const item of items) {
+      const prod = products.find(p => p.id === item.product_id);
+      if (!prod) continue;
+      if (!itemsByStore[prod.store_id]) itemsByStore[prod.store_id] = [];
+      itemsByStore[prod.store_id].push({ ...item, product_name: prod.name, product_image: prod.image });
     }
 
-    // Generate order name: "RestaurantName Order #X"
-    const orderNum = Date.now().toString(36).toUpperCase();
-    const orderName = `${store[0].name} Order #${orderNum}`;
-
-    const { rows: [order] } = await query(
-      'INSERT INTO customer_orders (user_id, store_id, order_name, user_name, total_price, delivery_address, pickup_address, delivery_lat, delivery_lng, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
-      [req.user.id, restaurant_id, orderName, user[0].name, totalPrice, resolvedAddress, resolvedPickup, resolvedLat, resolvedLng, notes || '']
+    // Fetch store info for each group
+    const storeIds = Object.keys(itemsByStore).map(Number);
+    const { rows: stores } = await query(
+      `SELECT id, name, location FROM stores WHERE id = ANY($1) AND is_active = true`,
+      [storeIds]
     );
+    if (!stores.length)
+      return res.status(400).json({ success: false, message: 'No valid restaurants found' });
 
-    for (const item of items) {
-      const { rows: [prod] } = await query('SELECT name, image FROM products WHERE id = $1', [item.product_id]);
-      await query(
-        'INSERT INTO order_items (order_id, product_id, product_name, product_image, quantity, price) VALUES ($1,$2,$3,$4,$5,$6)',
-        [order.id, item.product_id, prod?.name || 'Unknown', prod?.image || null, item.quantity || 1, item.price]
+    const createdOrders = [];
+
+    for (const storeId of storeIds) {
+      const store = stores.find(s => s.id === storeId);
+      if (!store) continue;
+
+      const storeItems = itemsByStore[storeId];
+      const totalPrice = storeItems.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity || 1), 0);
+      const orderNum = Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
+      const orderName = `${store.name} Order #${orderNum}`;
+      const resolvedPickup = pickup_address || store.location || '';
+
+      const { rows: [order] } = await query(
+        'INSERT INTO customer_orders (user_id, store_id, order_name, user_name, total_price, delivery_address, pickup_address, delivery_lat, delivery_lng, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+        [req.user.id, storeId, orderName, user[0].name, totalPrice, resolvedAddress, resolvedPickup, resolvedLat, resolvedLng, notes || '']
       );
+
+      for (const item of storeItems) {
+        await query(
+          'INSERT INTO order_items (order_id, product_id, product_name, product_image, quantity, price) VALUES ($1,$2,$3,$4,$5,$6)',
+          [order.id, item.product_id, item.product_name, item.product_image, item.quantity || 1, item.price]
+        );
+      }
+
+      const { rows: fullOrder } = await query('SELECT * FROM customer_orders WHERE id = $1', [order.id]);
+      const { rows: orderItems } = await query(
+        'SELECT oi.*, p.name AS product_name, p.image AS product_image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = $1',
+        [order.id]
+      );
+      fullOrder[0].items = fixItemImages(orderItems);
+      fullOrder[0].orderName = fullOrder[0].order_name;
+      createdOrders.push(fullOrder[0]);
     }
 
     await query('DELETE FROM cart_items WHERE user_id = $1', [req.user.id]);
 
-    const { rows: [fullOrder] } = await query('SELECT * FROM customer_orders WHERE id = $1', [order.id]);
-    const { rows: orderItems } = await query(
-      'SELECT oi.*, p.name AS product_name, p.image AS product_image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = $1',
-      [order.id]
-    );
-    fullOrder.items = fixItemImages(orderItems);
-
-    fullOrder.orderName = fullOrder.order_name;
-
-    // Send order confirmation email (non-blocking)
+    // Send order confirmation email
+    const totalAll = createdOrders.reduce((sum, o) => sum + parseFloat(o.total_price), 0);
     try {
-      await sendOrderConfirmationEmail({ to: user[0].email, name: user[0].name, order: fullOrder });
+      await sendOrderConfirmationEmail({ to: user[0].email, name: user[0].name, order: createdOrders[0] });
     } catch (mailErr) {
       console.error('[OrderEmail] Confirmation send failed:', mailErr.message);
     }
 
-    // In-app notification to customer
     createNotification(req.user.id, {
       title: 'Order Placed',
-      message: `Your order "${orderName}" has been placed successfully. Total: ETB ${totalPrice.toFixed(2)}`,
+      message: `Your order${createdOrders.length > 1 ? 's have' : ' has'} been placed successfully. Total: ETB ${totalAll.toFixed(2)}`,
     });
 
-    // Notify admin users about new order
     try {
       const { rows: admins } = await query("SELECT id FROM users WHERE role = 'admin'");
       for (const admin of admins) {
         createNotification(admin.id, {
           title: 'New Order',
-          message: `New order "${orderName}" from ${user[0].name}. Total: ETB ${totalPrice.toFixed(2)}`,
+          message: `New order(s) from ${user[0].name}. Total: ETB ${totalAll.toFixed(2)}`,
         });
       }
     } catch (e) {
       console.error('[OrderNotify] Admin notify failed:', e.message);
     }
 
-    res.status(201).json({ success: true, data: fullOrder });
+    res.status(201).json({ success: true, data: createdOrders.length === 1 ? createdOrders[0] : createdOrders });
   } catch (err) { next(err); }
 };
 
