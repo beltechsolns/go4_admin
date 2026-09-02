@@ -47,9 +47,23 @@ export const createOrder = async (req, res, next) => {
 
     const totalPrice = items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity || 1), 0);
 
+    // Verify all items belong to the same restaurant
+    const productIds = items.map(i => i.product_id);
+    const { rows: products } = await query(
+      `SELECT id, store_id FROM products WHERE id = ANY($1)`,
+      [productIds]
+    );
+    const wrongStore = products.find(p => p.store_id !== parseInt(restaurant_id));
+    if (wrongStore) {
+      return res.status(400).json({ success: false, message: 'All items must be from the same restaurant' });
+    }
+    if (products.length !== productIds.length) {
+      return res.status(400).json({ success: false, message: 'Some products were not found' });
+    }
+
     // Generate order name: "RestaurantName Order #X"
     const orderNum = Date.now().toString(36).toUpperCase();
-    orderName = `${store[0].name} Order #${orderNum}`;
+    const orderName = `${store[0].name} Order #${orderNum}`;
 
     const { rows: [order] } = await query(
       'INSERT INTO customer_orders (user_id, store_id, order_name, user_name, total_price, delivery_address, pickup_address, delivery_lat, delivery_lng, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
