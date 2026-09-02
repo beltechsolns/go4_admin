@@ -138,5 +138,8 @@ router.put('/rider/orders/:id/start', customerAuth, roleMiddleware(['rider']), r
 router.put('/rider/orders/:id/complete', customerAuth, roleMiddleware(['rider']), rider.completeDelivery);
 router.post('/rider/location', customerAuth, roleMiddleware(['rider']), rider.updateLocation);
 router.put('/rider/location', customerAuth, roleMiddleware(['rider']), rider.updateLocation);
+router.get('/rider/notifications', customerAuth, roleMiddleware(['rider']), notifications.getNotifications);
+router.put('/rider/notifications/:id/read', customerAuth, roleMiddleware(['rider']), notifications.markAsRead);
+router.put('/rider/notifications/read-all', customerAuth, roleMiddleware(['rider']), notifications.markAllAsRead);
 
 export default router;

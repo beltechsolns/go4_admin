@@ -33,14 +33,18 @@ const customerAuth = async (req, res, next) => {
   }
 };
 
-export const roleMiddleware = (allowedRoles) => (req, res, next) => {
+export const roleMiddleware = (allowedRoles) => async (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
-  if (!allowedRoles.includes(req.user.role)) {
-    return res.status(403).json({ success: false, message: 'Forbidden' });
+  if (allowedRoles.includes(req.user.role)) {
+    return next();
   }
-  next();
+  if (allowedRoles.includes('rider')) {
+    const { rows } = await query('SELECT id FROM riders WHERE user_id = $1', [req.user.id]);
+    if (rows.length) return next();
+  }
+  return res.status(403).json({ success: false, message: 'Forbidden' });
 };
 
 export default customerAuth;
