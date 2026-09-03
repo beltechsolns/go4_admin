@@ -5,7 +5,7 @@ export const getNotifications = async (req, res, next) => {
     const { page = 1, limit = 20 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    const [listResult, unreadResult] = await Promise.all([
+    const [listResult, unreadResult, totalResult] = await Promise.all([
       query(
         'SELECT * FROM user_notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
         [req.user.id, parseInt(limit), offset]
@@ -20,8 +20,8 @@ export const getNotifications = async (req, res, next) => {
     res.json({
       success: true,
       data: listResult.rows,
-      unread_count: parseInt(unreadResult[0].rows[0].unread),
-      total: parseInt(unreadResult[1].rows[0].total),
+      unread_count: parseInt(unreadResult.rows[0].unread),
+      total: parseInt(totalResult.rows[0].total),
       pagination: { page: parseInt(page), limit: parseInt(limit) },
     });
   } catch (err) { next(err); }

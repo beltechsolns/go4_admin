@@ -1,5 +1,6 @@
 import { query } from '../../config/db.js';
 import { haversineKm, computeEtaMinutes, hasArrived } from '../../helpers/geoHelper.js';
+import { getRouteDirections } from '../../helpers/directionHelper.js';
 import { fixItemImages } from '../../helpers/imageHelper.js';
 import { sendOrderConfirmationEmail, sendOrderStatusEmail } from '../../helpers/emailHelper.js';
 import { notifyUser, createNotification } from '../../helpers/notifyHelper.js';
@@ -320,17 +321,34 @@ export const trackOrder = async (req, res, next) => {
     let distance_km = null;
     let eta_minutes = null;
     let arrived = false;
+    let route = null;
 
     if (rider && order.delivery_lat && order.delivery_lng) {
       if (rider.current_lat != null && rider.current_lng != null) {
-        distance_km = haversineKm(
+        // Get actual road route first
+        route = await getRouteDirections(
           parseFloat(rider.current_lat),
           parseFloat(rider.current_lng),
           parseFloat(order.delivery_lat),
           parseFloat(order.delivery_lng)
         );
-        eta_minutes = computeEtaMinutes(distance_km);
-        arrived = hasArrived(distance_km);
+
+        if (route) {
+          // Use real road distance and duration from OSRM
+          distance_km = route.distance_km;
+          eta_minutes = route.duration_minutes;
+          arrived = hasArrived(distance_km);
+        } else {
+          // Fallback to straight-line if OSRM fails
+          distance_km = haversineKm(
+            parseFloat(rider.current_lat),
+            parseFloat(rider.current_lng),
+            parseFloat(order.delivery_lat),
+            parseFloat(order.delivery_lng)
+          );
+          eta_minutes = computeEtaMinutes(distance_km);
+          arrived = hasArrived(distance_km);
+        }
       }
     }
 
@@ -374,6 +392,12 @@ export const trackOrder = async (req, res, next) => {
               ? 'Rider has arrived at your location'
               : `Rider is ${eta_minutes} minutes away`,
         },
+        route: route ? {
+          geometry: route.geometry,
+          distance_km: route.distance_km,
+          duration_minutes: route.duration_minutes,
+          steps: route.steps,
+        } : null,
       },
     });
   } catch (err) { next(err); }

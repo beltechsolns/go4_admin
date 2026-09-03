@@ -1,6 +1,7 @@
 import { query } from '../../config/db.js';
 import { fixImages, fixItemImages } from '../../helpers/imageHelper.js';
 import { haversineKm, computeEtaMinutes } from '../../helpers/geoHelper.js';
+import { getRouteDirections } from '../../helpers/directionHelper.js';
 
 export const getRestaurants = async (req, res, next) => {
   try {
@@ -106,12 +107,27 @@ export const estimateDeliveryTime = async (req, res, next) => {
 
     const eta_minutes = computeEtaMinutes(distance_km);
 
+    const route = await getRouteDirections(
+      parseFloat(store.latitude),
+      parseFloat(store.longitude),
+      parseFloat(latitude),
+      parseFloat(longitude)
+    );
+
+    // Use real road distance/duration from OSRM if available, fallback to straight-line
+    const finalDistance = route ? route.distance_km : (distance_km ? parseFloat(distance_km.toFixed(2)) : null);
+    const finalEta = route ? route.duration_minutes : eta_minutes;
+
     res.json({
       success: true,
       data: {
         restaurant: { id: store.id, name: store.name },
-        distance_km: distance_km ? parseFloat(distance_km.toFixed(2)) : null,
-        eta_minutes,
+        distance_km: finalDistance,
+        eta_minutes: finalEta,
+        route: route ? {
+          geometry: route.geometry,
+          steps: route.steps,
+        } : null,
       },
     });
   } catch (err) { next(err); }
