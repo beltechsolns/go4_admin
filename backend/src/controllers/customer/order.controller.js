@@ -61,6 +61,8 @@ export const createOrder = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'No valid restaurants found' });
 
     const createdOrders = [];
+    const isMultiRestaurant = storeIds.length > 1;
+    const deliveryGroupId = isMultiRestaurant ? `DG-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}` : null;
 
     for (const storeId of storeIds) {
       const store = stores.find(s => s.id === storeId);
@@ -73,8 +75,8 @@ export const createOrder = async (req, res, next) => {
       const resolvedPickup = pickup_address || store.location || '';
 
       const { rows: [order] } = await query(
-        'INSERT INTO customer_orders (user_id, store_id, order_name, user_name, total_price, delivery_address, pickup_address, delivery_lat, delivery_lng, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
-        [req.user.id, storeId, orderName, user[0].name, totalPrice, resolvedAddress, resolvedPickup, resolvedLat, resolvedLng, notes || '']
+        'INSERT INTO customer_orders (user_id, store_id, order_name, user_name, total_price, delivery_address, pickup_address, delivery_lat, delivery_lng, notes, delivery_group_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',
+        [req.user.id, storeId, orderName, user[0].name, totalPrice, resolvedAddress, resolvedPickup, resolvedLat, resolvedLng, notes || '', deliveryGroupId]
       );
 
       for (const item of storeItems) {
@@ -277,6 +279,34 @@ export const trackOrder = async (req, res, next) => {
 
     order.orderName = order.order_name;
 
+    // Check if this order is part of a delivery group
+    let groupedOrders = [];
+    let pickupStops = [];
+    if (order.delivery_group_id) {
+      const { rows: group } = await query(
+        'SELECT co.*, s.name AS store_name, s.latitude AS store_lat, s.longitude AS store_lng, s.location AS store_location FROM customer_orders co LEFT JOIN stores s ON s.id = co.store_id WHERE co.delivery_group_id = $1 ORDER BY co.store_id',
+        [order.delivery_group_id]
+      );
+      groupedOrders = group;
+
+      // Build pickup stops
+      const storeMap = {};
+      for (const o of group) {
+        if (!storeMap[o.store_id]) {
+          storeMap[o.store_id] = {
+            store_id: o.store_id,
+            store_name: o.store_name,
+            store_location: o.store_location,
+            store_lat: o.store_lat,
+            store_lng: o.store_lng,
+            orders: [],
+          };
+        }
+        storeMap[o.store_id].orders.push({ id: o.id, order_name: o.order_name, total_price: o.total_price });
+      }
+      pickupStops = Object.values(storeMap);
+    }
+
     // Rider live location
     let rider = null;
     if (order.rider_id) {
@@ -293,53 +323,95 @@ export const trackOrder = async (req, res, next) => {
         const minutesOffline = (now - riderLastUpdate) / (1000 * 60);
 
         if (minutesOffline > 30) {
-          await query(
-            "UPDATE customer_orders SET status = 'cancelled', updated_at = NOW() WHERE id = $1",
-            [order.id]
-          );
+          if (order.delivery_group_id) {
+            await query(
+              "UPDATE customer_orders SET status = 'cancelled', updated_at = NOW() WHERE delivery_group_id = $1",
+              [order.delivery_group_id]
+            );
+          } else {
+            await query(
+              "UPDATE customer_orders SET status = 'cancelled', updated_at = NOW() WHERE id = $1",
+              [order.id]
+            );
+          }
           order.status = 'cancelled';
 
-          // Notify customer
           createNotification(order.user_id, {
             title: 'Order Cancelled',
             message: `Your order "${order.order_name}" has been cancelled because the rider went offline.`,
           });
-
-          try {
-            const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [order.user_id]);
-            if (user.length && user[0].email) {
-              await sendOrderStatusEmail({ to: user[0].email, name: user[0].name, order, status: 'cancelled' });
-            }
-          } catch (e) {
-            console.error('[OrderEmail] Cancel notification failed:', e.message);
-          }
         }
       }
     }
 
-    // Distance & ETA from rider to delivery point
+    // Distance & ETA — multi-stop route for grouped orders
     let distance_km = null;
     let eta_minutes = null;
     let arrived = false;
     let route = null;
 
-    if (rider && order.delivery_lat && order.delivery_lng) {
-      if (rider.current_lat != null && rider.current_lng != null) {
-        // Get actual road route first
+    if (rider && rider.current_lat != null && rider.current_lng != null) {
+      if (order.delivery_group_id && pickupStops.length > 1) {
+        // Multi-stop: Rider → Restaurant A → Restaurant B → Customer
+        const waypoints = pickupStops
+          .filter(s => s.store_lat && s.store_lng)
+          .map(s => `${s.store_lng},${s.store_lat}`);
+
+        const destLng = order.delivery_lng;
+        const destLat = order.delivery_lat;
+
+        if (waypoints.length && destLng && destLat) {
+          const allPoints = [`${rider.current_lng},${rider.current_lat}`, ...waypoints, `${destLng},${destLat}`];
+          const url = `http://router.project-osrm.org/route/v1/driving/${allPoints.join(';')}?overview=full&geometries=geojson&steps=true`;
+
+          try {
+            const res2 = await fetch(url);
+            const data = await res2.json();
+            if (data.routes && data.routes.length) {
+              const r = data.routes[0];
+              route = {
+                geometry: r.geometry,
+                distance_km: parseFloat((r.distance / 1000).toFixed(2)),
+                duration_minutes: Math.max(1, Math.round(r.duration / 60)),
+                steps: r.legs.flatMap((leg, i) => {
+                  const label = i < pickupStops.length
+                    ? `Pickup at ${pickupStops[i].store_name}`
+                    : 'Deliver to customer';
+                  return leg.steps.map(s => ({
+                    instruction: s.maneuver.type === 'depart' ? 'Head to ' + (pickupStops[0]?.store_name || 'restaurant')
+                      : s.maneuver.type === 'arrive' && i < pickupStops.length ? `Arrived at ${pickupStops[i].store_name}`
+                      : i === pickupStops.length && s.maneuver.type === 'arrive' ? 'Arrive at customer'
+                      : `${s.maneuver.modifier || ''} on ${s.name || 'road'}`.trim(),
+                    distance_km: parseFloat((s.distance / 1000).toFixed(2)),
+                    duration_minutes: Math.max(1, Math.round(s.duration / 60)),
+                    maneuver: s.maneuver.type,
+                    leg: label,
+                  }));
+                }),
+              };
+              distance_km = route.distance_km;
+              eta_minutes = route.duration_minutes;
+              arrived = hasArrived(distance_km);
+            }
+          } catch (e) {
+            console.error('[OSRM] Multi-stop route failed:', e.message);
+          }
+        }
+      }
+
+      // Single route fallback
+      if (!route && order.delivery_lat && order.delivery_lng) {
         route = await getRouteDirections(
           parseFloat(rider.current_lat),
           parseFloat(rider.current_lng),
           parseFloat(order.delivery_lat),
           parseFloat(order.delivery_lng)
         );
-
         if (route) {
-          // Use real road distance and duration from OSRM
           distance_km = route.distance_km;
           eta_minutes = route.duration_minutes;
           arrived = hasArrived(distance_km);
         } else {
-          // Fallback to straight-line if OSRM fails
           distance_km = haversineKm(
             parseFloat(rider.current_lat),
             parseFloat(rider.current_lng),
@@ -382,6 +454,10 @@ export const trackOrder = async (req, res, next) => {
           delivery_lat: order.delivery_lat,
           delivery_lng: order.delivery_lng,
         },
+        grouped_orders: groupedOrders.length > 1
+          ? groupedOrders.map(o => ({ id: o.id, order_name: o.order_name, store_name: o.store_name, total_price: o.total_price, status: o.status }))
+          : null,
+        pickup_stops: pickupStops.length > 1 ? pickupStops : null,
         tracking: {
           distance_km: distance_km ? parseFloat(distance_km.toFixed(2)) : null,
           eta_minutes,
@@ -390,7 +466,9 @@ export const trackOrder = async (req, res, next) => {
             ? 'Waiting for a rider to accept the order'
             : arrived
               ? 'Rider has arrived at your location'
-              : `Rider is ${eta_minutes} minutes away`,
+              : pickupStops.length > 1
+                ? `Rider is picking up from ${pickupStops.length} restaurants, ${eta_minutes} min to you`
+                : `Rider is ${eta_minutes} minutes away`,
         },
         route: route ? {
           geometry: route.geometry,

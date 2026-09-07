@@ -92,25 +92,80 @@ export const getAvailableOrders = async (req, res, next) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    const count = await query("SELECT COUNT(*) AS total FROM customer_orders WHERE status = 'pending'");
-    const total = parseInt(count.rows[0].total);
 
+    // Get grouped deliveries (one row per group) + single orders
     const { rows } = await query(
-      `SELECT co.id, co.order_name, co.total_price, co.delivery_address, co.pickup_address,
-        co.delivery_lat, co.delivery_lng, co.notes, co.created_at,
-        u.name AS user_name, u.phone AS user_phone,
-        s.name AS store_name, s.location AS store_location, s.latitude AS store_lat, s.longitude AS store_lng, s.phone AS store_phone,
-        (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = co.id) AS items_count
-      FROM customer_orders co
-      LEFT JOIN users u ON u.id = co.user_id
-      LEFT JOIN stores s ON s.id = co.store_id
-      WHERE co.status = $1
-      ORDER BY co.created_at DESC LIMIT $2 OFFSET $3`,
-      ['pending', parseInt(limit), offset]
+      `WITH grouped AS (
+        SELECT delivery_group_id, COUNT(*) AS order_count, SUM(total_price) AS total_price,
+          MAX(delivery_address) AS delivery_address, MAX(delivery_lat) AS delivery_lat, MAX(delivery_lng) AS delivery_lng,
+          MAX(user_id) AS user_id, MAX(notes) AS notes, MIN(created_at) AS created_at,
+          array_agg(DISTINCT store_id) AS store_ids
+        FROM customer_orders
+        WHERE status = 'pending' AND delivery_group_id IS NOT NULL
+        GROUP BY delivery_group_id
+      ),
+      singles AS (
+        SELECT co.id, co.order_name, co.total_price, co.delivery_address, co.delivery_lat, co.delivery_lng,
+          co.user_id, co.notes, co.created_at, co.store_id, 1 AS order_count, ARRAY[co.store_id] AS store_ids
+        FROM customer_orders co
+        WHERE co.status = 'pending' AND co.delivery_group_id IS NULL
+      )
+      SELECT * FROM (
+        SELECT g.delivery_group_id AS id, 'Group #' || g.delivery_group_id AS order_name, g.total_price,
+          g.delivery_address, g.delivery_lat, g.delivery_lng, g.user_id, g.notes, g.created_at,
+          g.store_ids, g.order_count, 'grouped' AS type
+        FROM grouped g
+        UNION ALL
+        SELECT s.id, s.order_name, s.total_price, s.delivery_address, s.delivery_lat, s.delivery_lng,
+          s.user_id, s.notes, s.created_at, s.store_ids, s.order_count, 'single' AS type
+        FROM singles s
+      ) combined
+      ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [parseInt(limit), offset]
     );
 
+    const totalResult = await query(
+      `SELECT COUNT(DISTINCT delivery_group_id) + COUNT(*) FILTER (WHERE delivery_group_id IS NULL) AS total
+       FROM customer_orders WHERE status = 'pending'`
+    );
+    const total = parseInt(totalResult.rows[0].total);
+
+    // Enrich with store and user info
     for (const order of rows) {
       order.orderName = order.order_name;
+
+      // Get store details
+      const { rows: stores } = await query(
+        'SELECT id, name, location, latitude, longitude, phone FROM stores WHERE id = ANY($1)',
+        [order.store_ids]
+      );
+      order.stores = stores;
+
+      // Get user details
+      if (order.user_id) {
+        const { rows: users } = await query('SELECT name, phone FROM users WHERE id = $1', [order.user_id]);
+        if (users.length) {
+          order.user_name = users[0].name;
+          order.user_phone = users[0].phone;
+        }
+      }
+
+      // Get items count
+      if (order.type === 'grouped') {
+        const { rows: itemCnt } = await query(
+          `SELECT COUNT(*) AS items_count FROM order_items oi
+           JOIN customer_orders co ON co.id = oi.order_id
+           WHERE co.delivery_group_id = $1`,
+          [order.id]
+        );
+        order.items_count = parseInt(itemCnt[0].items_count);
+      } else {
+        const { rows: itemCnt } = await query(
+          'SELECT COUNT(*) AS items_count FROM order_items WHERE order_id = $1',
+          [order.id]
+        );
+        order.items_count = parseInt(itemCnt[0].items_count);
+      }
     }
 
     res.json({
@@ -220,23 +275,87 @@ export const acceptOrder = async (req, res, next) => {
     if (!riderId) return res.status(404).json({ success: false, message: 'Rider profile not found' });
 
     const { rows } = await query(
-      "UPDATE customer_orders SET status = 'accepted', rider_id = $1, updated_at = NOW() WHERE id = $2 AND status = 'pending' RETURNING *",
-      [riderId, req.params.id]
+      "SELECT * FROM customer_orders WHERE id = $1 AND status = 'pending'",
+      [req.params.id]
     );
     if (!rows.length) return res.status(400).json({ success: false, message: 'Order not available' });
-    rows[0].orderName = rows[0].order_name;
-    notifyOrderStatus(rows[0], 'accepted');
 
-    // In-app notification to customer
-    if (rows[0].user_id) {
-      const { rows: rider } = await query('SELECT full_name FROM riders WHERE id = $1', [riderId]);
-      createNotification(rows[0].user_id, {
-        title: 'Rider Accepted',
-        message: `${rider[0]?.full_name || 'A rider'} has accepted your order "${rows[0].order_name}".`,
+    const order = rows[0];
+    let acceptedOrders;
+
+    if (order.delivery_group_id) {
+      // Accept ALL orders in the delivery group
+      const { rows: group } = await query(
+        "UPDATE customer_orders SET status = 'accepted', rider_id = $1, updated_at = NOW() WHERE delivery_group_id = $2 AND status = 'pending' RETURNING *",
+        [riderId, order.delivery_group_id]
+      );
+      acceptedOrders = group;
+    } else {
+      // Single order - accept just this one
+      const { rows: single } = await query(
+        "UPDATE customer_orders SET status = 'accepted', rider_id = $1, updated_at = NOW() WHERE id = $2 AND status = 'pending' RETURNING *",
+        [riderId, req.params.id]
+      );
+      acceptedOrders = single;
+    }
+
+    if (!acceptedOrders.length) return res.status(400).json({ success: false, message: 'Order not available' });
+
+    // Build pickup route from store locations
+    const storeIds = [...new Set(acceptedOrders.map(o => o.store_id))];
+    const { rows: stores } = await query(
+      'SELECT id, name, location, latitude, longitude FROM stores WHERE id = ANY($1)',
+      [storeIds]
+    );
+
+    const pickupStops = acceptedOrders.map(o => {
+      const store = stores.find(s => s.id === o.store_id);
+      return {
+        order_id: o.id,
+        order_name: o.order_name,
+        store_id: o.store_id,
+        store_name: store?.name || 'Restaurant',
+        store_location: store?.location || o.pickup_address,
+        store_lat: store?.latitude,
+        store_lng: store?.longitude,
+      };
+    });
+
+    // Sort pickup stops by proximity (nearest first)
+    const firstStore = stores.find(s => s.id === storeIds[0]);
+    if (firstStore?.latitude && firstStore?.longitude) {
+      pickupStops.sort((a, b) => {
+        if (!a.store_lat || !b.store_lat) return 0;
+        const distA = haversineKm(parseFloat(firstStore.latitude), parseFloat(firstStore.longitude), parseFloat(a.store_lat), parseFloat(a.store_lng));
+        const distB = haversineKm(parseFloat(firstStore.latitude), parseFloat(firstStore.longitude), parseFloat(b.store_lat), parseFloat(b.store_lng));
+        return (distA || 0) - (distB || 0);
       });
     }
 
-    res.json({ success: true, data: rows[0] });
+    // Notify customer
+    const firstOrder = acceptedOrders[0];
+    if (firstOrder.user_id) {
+      const { rows: rider } = await query('SELECT full_name FROM riders WHERE id = $1', [riderId]);
+      const countText = acceptedOrders.length > 1
+        ? `all ${acceptedOrders.length} orders from your delivery`
+        : `your order "${firstOrder.order_name}"`;
+      createNotification(firstOrder.user_id, {
+        title: 'Rider Accepted',
+        message: `${rider[0]?.full_name || 'A rider'} has accepted ${countText}.`,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        orders: acceptedOrders.map(o => ({ id: o.id, order_name: o.order_name, store_id: o.store_id, status: o.status })),
+        pickup_stops: pickupStops,
+        delivery_address: firstOrder.delivery_address,
+        delivery_lat: firstOrder.delivery_lat,
+        delivery_lng: firstOrder.delivery_lng,
+        is_grouped: !!order.delivery_group_id,
+      },
+    });
   } catch (err) { next(err); }
 };
 
@@ -246,12 +365,28 @@ export const startDelivery = async (req, res, next) => {
     if (!riderId) return res.status(404).json({ success: false, message: 'Rider profile not found' });
 
     const { rows } = await query(
-      "UPDATE customer_orders SET status = 'in_transit', updated_at = NOW() WHERE id = $1 AND rider_id = $2 RETURNING *",
+      "SELECT * FROM customer_orders WHERE id = $1 AND rider_id = $2",
       [req.params.id, riderId]
     );
     if (!rows.length) return res.status(400).json({ success: false, message: 'Order not found' });
-    rows[0].orderName = rows[0].order_name;
-    res.json({ success: true, data: rows[0] });
+
+    const order = rows[0];
+
+    if (order.delivery_group_id) {
+      // Start ALL orders in the group
+      await query(
+        "UPDATE customer_orders SET status = 'in_transit', updated_at = NOW() WHERE delivery_group_id = $1 AND rider_id = $2 AND status = 'accepted'",
+        [order.delivery_group_id, riderId]
+      );
+    } else {
+      await query(
+        "UPDATE customer_orders SET status = 'in_transit', updated_at = NOW() WHERE id = $1 AND rider_id = $2",
+        [req.params.id, riderId]
+      );
+    }
+
+    order.orderName = order.order_name;
+    res.json({ success: true, data: order });
   } catch (err) { next(err); }
 };
 
@@ -302,10 +437,18 @@ export const updateLocation = async (req, res, next) => {
         );
 
         if (distance !== null && distance <= 0.05) {
-          await query(
-            "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE id = $1",
-            [order.id]
-          );
+          if (order.delivery_group_id) {
+            // Deliver ALL orders in the group
+            await query(
+              "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE delivery_group_id = $1 AND rider_id = $2 AND status = 'in_transit'",
+              [order.delivery_group_id, riderId]
+            );
+          } else {
+            await query(
+              "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE id = $1",
+              [order.id]
+            );
+          }
 
           createNotification(order.user_id, {
             title: 'Order Delivered',
