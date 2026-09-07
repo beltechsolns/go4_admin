@@ -423,7 +423,7 @@ export const updateLocation = async (req, res, next) => {
 
     // Check if rider is near customer (within 50m) for active orders → auto-complete
     const { rows: activeOrders } = await query(
-      "SELECT id, user_id, order_name, delivery_lat, delivery_lng FROM customer_orders WHERE rider_id = $1 AND status = 'in_transit'",
+      "SELECT id, user_id, order_name, delivery_lat, delivery_lng, delivery_group_id FROM customer_orders WHERE rider_id = $1 AND status = 'in_transit'",
       [riderId]
     );
 
