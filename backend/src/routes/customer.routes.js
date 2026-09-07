@@ -134,6 +134,7 @@ router.get('/rider/orders/completed', customerAuth, roleMiddleware(['rider']), r
 router.get('/rider/orders/:id', customerAuth, roleMiddleware(['rider']), rider.getRiderOrderById);
 router.put('/rider/orders/:id/accept', customerAuth, roleMiddleware(['rider']), rider.acceptOrder);
 router.put('/rider/orders/:id/reject', customerAuth, roleMiddleware(['rider']), rider.rejectOrder);
+router.put('/rider/orders/:id/pickup', customerAuth, roleMiddleware(['rider']), rider.pickupOrder);
 router.put('/rider/orders/:id/start', customerAuth, roleMiddleware(['rider']), rider.startDelivery);
 router.put('/rider/orders/:id/complete', customerAuth, roleMiddleware(['rider']), rider.completeDelivery);
 router.post('/rider/location', customerAuth, roleMiddleware(['rider']), rider.updateLocation);

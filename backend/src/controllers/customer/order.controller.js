@@ -305,6 +305,23 @@ export const trackOrder = async (req, res, next) => {
         storeMap[o.store_id].orders.push({ id: o.id, order_name: o.order_name, total_price: o.total_price });
       }
       pickupStops = Object.values(storeMap);
+    } else {
+      // Single order — build one pickup stop from store info
+      const { rows: storeRows } = await query(
+        'SELECT id, name, location, latitude, longitude FROM stores WHERE id = $1',
+        [order.store_id]
+      );
+      if (storeRows.length) {
+        const s = storeRows[0];
+        pickupStops = [{
+          store_id: s.id,
+          store_name: s.name,
+          store_location: s.location,
+          store_lat: s.latitude,
+          store_lng: s.longitude,
+          orders: [{ id: order.id, order_name: order.order_name, total_price: order.total_price }],
+        }];
+      }
     }
 
     // Rider live location
@@ -399,19 +416,61 @@ export const trackOrder = async (req, res, next) => {
         }
       }
 
-      // Single route fallback
+      // Single route: Rider → Restaurant → Customer
       if (!route && order.delivery_lat && order.delivery_lng) {
-        route = await getRouteDirections(
-          parseFloat(rider.current_lat),
-          parseFloat(rider.current_lng),
-          parseFloat(order.delivery_lat),
-          parseFloat(order.delivery_lng)
+        // Get store location
+        const { rows: storeRows } = await query(
+          'SELECT name, latitude, longitude FROM stores WHERE id = $1',
+          [order.store_id]
         );
-        if (route) {
-          distance_km = route.distance_km;
-          eta_minutes = route.duration_minutes;
-          arrived = hasArrived(distance_km);
-        } else {
+
+        if (storeRows.length && storeRows[0].latitude && storeRows[0].longitude) {
+          const storeLat = parseFloat(storeRows[0].latitude);
+          const storeLng = parseFloat(storeRows[0].longitude);
+          const riderLat = parseFloat(rider.current_lat);
+          const riderLng = parseFloat(rider.current_lng);
+          const destLat = parseFloat(order.delivery_lat);
+          const destLng = parseFloat(order.delivery_lng);
+
+          const allPoints = [`${riderLng},${riderLat}`, `${storeLng},${storeLat}`, `${destLng},${destLat}`];
+          const url = `http://router.project-osrm.org/route/v1/driving/${allPoints.join(';')}?overview=full&geometries=geojson&steps=true`;
+
+          try {
+            const res2 = await fetch(url);
+            const data = await res2.json();
+            if (data.routes && data.routes.length) {
+              const r = data.routes[0];
+              route = {
+                geometry: r.geometry,
+                distance_km: parseFloat((r.distance / 1000).toFixed(2)),
+                duration_minutes: Math.max(1, Math.round(r.duration / 60)),
+                steps: r.legs.flatMap((leg, i) => {
+                  const label = i === 0
+                    ? `Pickup at ${storeRows[0].name}`
+                    : 'Deliver to customer';
+                  return leg.steps.map(s => ({
+                    instruction: s.maneuver.type === 'depart' ? `Head to ${storeRows[0].name}`
+                      : s.maneuver.type === 'arrive' && i === 0 ? `Arrived at ${storeRows[0].name}`
+                      : s.maneuver.type === 'arrive' && i === 1 ? 'Arrive at customer'
+                      : `${s.maneuver.modifier || ''} on ${s.name || 'road'}`.trim(),
+                    distance_km: parseFloat((s.distance / 1000).toFixed(2)),
+                    duration_minutes: Math.max(1, Math.round(s.duration / 60)),
+                    maneuver: s.maneuver.type,
+                    leg: label,
+                  }));
+                }),
+              };
+              distance_km = route.distance_km;
+              eta_minutes = route.duration_minutes;
+              arrived = hasArrived(distance_km);
+            }
+          } catch (e) {
+            console.error('[OSRM] Single route failed:', e.message);
+          }
+        }
+
+        // Fallback to haversine if OSRM failed
+        if (!route) {
           distance_km = haversineKm(
             parseFloat(rider.current_lat),
             parseFloat(rider.current_lng),
@@ -457,7 +516,7 @@ export const trackOrder = async (req, res, next) => {
         grouped_orders: groupedOrders.length > 1
           ? groupedOrders.map(o => ({ id: o.id, order_name: o.order_name, store_name: o.store_name, total_price: o.total_price, status: o.status }))
           : null,
-        pickup_stops: pickupStops.length > 1 ? pickupStops : null,
+        pickup_stops: pickupStops.length > 0 ? pickupStops : null,
         tracking: {
           distance_km: distance_km ? parseFloat(distance_km.toFixed(2)) : null,
           eta_minutes,
@@ -468,7 +527,7 @@ export const trackOrder = async (req, res, next) => {
               ? 'Rider has arrived at your location'
               : pickupStops.length > 1
                 ? `Rider is picking up from ${pickupStops.length} restaurants, ${eta_minutes} min to you`
-                : `Rider is ${eta_minutes} minutes away`,
+                : `Rider is heading to ${pickupStops[0]?.store_name || 'the restaurant'}, ${eta_minutes} min to you`,
         },
         route: route ? {
           geometry: route.geometry,
@@ -530,9 +589,16 @@ export const confirmDelivery = async (req, res, next) => {
       [req.params.id]
     );
     rows[0].orderName = rows[0].order_name;
-    notifyOrderStatus(rows[0], 'delivered');
 
-    // In-app notification to customer
+    try {
+      const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [rows[0].user_id]);
+      if (user.length && user[0].email) {
+        await sendOrderStatusEmail({ to: user[0].email, name: user[0].name, order: rows[0], status: 'delivered' });
+      }
+    } catch (e) {
+      console.error('[OrderEmail] Delivered notification failed:', e.message);
+    }
+
     createNotification(req.user.id, {
       title: 'Order Delivered',
       message: `Your order "${rows[0].order_name}" has been delivered. Enjoy!`,

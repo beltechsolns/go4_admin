@@ -375,14 +375,65 @@ export const startDelivery = async (req, res, next) => {
     if (order.delivery_group_id) {
       // Start ALL orders in the group
       await query(
-        "UPDATE customer_orders SET status = 'in_transit', updated_at = NOW() WHERE delivery_group_id = $1 AND rider_id = $2 AND status = 'accepted'",
+        "UPDATE customer_orders SET status = 'in_transit', updated_at = NOW() WHERE delivery_group_id = $1 AND rider_id = $2 AND status = 'picked_up'",
         [order.delivery_group_id, riderId]
       );
     } else {
       await query(
-        "UPDATE customer_orders SET status = 'in_transit', updated_at = NOW() WHERE id = $1 AND rider_id = $2",
+        "UPDATE customer_orders SET status = 'in_transit', updated_at = NOW() WHERE id = $1 AND rider_id = $2 AND status = 'picked_up'",
         [req.params.id, riderId]
       );
+    }
+
+    if (order.user_id) {
+      createNotification(order.user_id, {
+        title: 'Out for Delivery',
+        message: `Your order "${order.order_name}" is on the way!`,
+      });
+    }
+
+    order.orderName = order.order_name;
+    res.json({ success: true, data: order });
+  } catch (err) { next(err); }
+};
+
+export const pickupOrder = async (req, res, next) => {
+  try {
+    const riderId = await resolveRiderId(req.user.id);
+    if (!riderId) return res.status(404).json({ success: false, message: 'Rider profile not found' });
+
+    const { rows } = await query(
+      "SELECT * FROM customer_orders WHERE id = $1 AND rider_id = $2",
+      [req.params.id, riderId]
+    );
+    if (!rows.length) return res.status(400).json({ success: false, message: 'Order not found' });
+
+    const order = rows[0];
+    if (order.status !== 'accepted')
+      return res.status(400).json({ success: false, message: 'Order must be accepted before pickup' });
+
+    if (order.delivery_group_id) {
+      await query(
+        "UPDATE customer_orders SET status = 'picked_up', updated_at = NOW() WHERE delivery_group_id = $1 AND rider_id = $2 AND status = 'accepted'",
+        [order.delivery_group_id, riderId]
+      );
+    } else {
+      await query(
+        "UPDATE customer_orders SET status = 'picked_up', updated_at = NOW() WHERE id = $1 AND rider_id = $2",
+        [req.params.id, riderId]
+      );
+    }
+
+    if (order.user_id) {
+      const { rows: stores } = await query(
+        'SELECT s.name FROM stores s WHERE s.id = $1',
+        [order.store_id]
+      );
+      const storeName = stores.length ? stores[0].name : 'the restaurant';
+      createNotification(order.user_id, {
+        title: 'Order Picked Up',
+        message: `Rider has picked up your order from ${storeName}.`,
+      });
     }
 
     order.orderName = order.order_name;
@@ -395,8 +446,46 @@ export const completeDelivery = async (req, res, next) => {
     const riderId = await resolveRiderId(req.user.id);
     if (!riderId) return res.status(404).json({ success: false, message: 'Rider profile not found' });
 
-    // Rider cannot complete delivery - only customer can
-    return res.status(403).json({ success: false, message: 'Only customer can confirm delivery' });
+    const { rows } = await query(
+      "SELECT * FROM customer_orders WHERE id = $1 AND rider_id = $2",
+      [req.params.id, riderId]
+    );
+    if (!rows.length) return res.status(400).json({ success: false, message: 'Order not found' });
+
+    const order = rows[0];
+    if (order.status !== 'in_transit')
+      return res.status(400).json({ success: false, message: 'Order must be in transit to complete' });
+
+    if (order.delivery_group_id) {
+      await query(
+        "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE delivery_group_id = $1 AND rider_id = $2 AND status = 'in_transit'",
+        [order.delivery_group_id, riderId]
+      );
+    } else {
+      await query(
+        "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE id = $1",
+        [req.params.id]
+      );
+    }
+
+    if (order.user_id) {
+      createNotification(order.user_id, {
+        title: 'Order Delivered',
+        message: `Your order "${order.order_name}" has been delivered. Enjoy!`,
+      });
+
+      try {
+        const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [order.user_id]);
+        if (user.length && user[0].email) {
+          await sendOrderStatusEmail({ to: user[0].email, name: user[0].name, order, status: 'delivered' });
+        }
+      } catch (e) {
+        console.error('[OrderEmail] Delivered notification failed:', e.message);
+      }
+    }
+
+    order.orderName = order.order_name;
+    res.json({ success: true, message: 'Delivery completed', data: order });
   } catch (err) { next(err); }
 };
 
