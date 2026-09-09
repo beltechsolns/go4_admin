@@ -187,7 +187,7 @@ export const getActiveOrders = async (req, res, next) => {
         (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = co.id) AS items_count
       FROM customer_orders co
       LEFT JOIN users u ON u.id = co.user_id
-      WHERE co.rider_id = $1 AND co.status IN ('accepted','picked_up','in_transit')
+      WHERE co.rider_id = $1 AND co.status IN ('accepted','picked_up','in_transit','arrived')
       ORDER BY co.created_at DESC`,
       [riderId]
     );
@@ -458,29 +458,29 @@ export const completeDelivery = async (req, res, next) => {
 
     if (order.delivery_group_id) {
       await query(
-        "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE delivery_group_id = $1 AND rider_id = $2 AND status = 'in_transit'",
+        "UPDATE customer_orders SET status = 'arrived', updated_at = NOW() WHERE delivery_group_id = $1 AND rider_id = $2 AND status = 'in_transit'",
         [order.delivery_group_id, riderId]
       );
     } else {
       await query(
-        "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE id = $1",
+        "UPDATE customer_orders SET status = 'arrived', updated_at = NOW() WHERE id = $1",
         [req.params.id]
       );
     }
 
     if (order.user_id) {
       createNotification(order.user_id, {
-        title: 'Order Delivered',
-        message: `Your order "${order.order_name}" has been delivered. Enjoy!`,
+        title: 'Rider Arrived',
+        message: `Your rider has arrived at your location for "${order.order_name}". Please confirm receipt.`,
       });
 
       try {
         const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [order.user_id]);
         if (user.length && user[0].email) {
-          await sendOrderStatusEmail({ to: user[0].email, name: user[0].name, order, status: 'delivered' });
+          await sendOrderStatusEmail({ to: user[0].email, name: user[0].name, order, status: 'arrived' });
         }
       } catch (e) {
-        console.error('[OrderEmail] Delivered notification failed:', e.message);
+        console.error('[OrderEmail] Arrived notification failed:', e.message);
       }
     }
 
@@ -527,30 +527,30 @@ export const updateLocation = async (req, res, next) => {
 
         if (distance !== null && distance <= 0.05) {
           if (order.delivery_group_id) {
-            // Deliver ALL orders in the group
+            // Arrive ALL orders in the group
             await query(
-              "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE delivery_group_id = $1 AND rider_id = $2 AND status = 'in_transit'",
+              "UPDATE customer_orders SET status = 'arrived', updated_at = NOW() WHERE delivery_group_id = $1 AND rider_id = $2 AND status = 'in_transit'",
               [order.delivery_group_id, riderId]
             );
           } else {
             await query(
-              "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE id = $1",
+              "UPDATE customer_orders SET status = 'arrived', updated_at = NOW() WHERE id = $1",
               [order.id]
             );
           }
 
           createNotification(order.user_id, {
-            title: 'Order Delivered',
-            message: `Your order "${order.order_name}" has been delivered. Enjoy!`,
+            title: 'Rider Arrived',
+            message: `Your rider has arrived at your location for "${order.order_name}". Please confirm receipt.`,
           });
 
           try {
             const { rows: user } = await query('SELECT name, email FROM users WHERE id = $1', [order.user_id]);
             if (user.length && user[0].email) {
-              await sendOrderStatusEmail({ to: user[0].email, name: user[0].name, order, status: 'delivered' });
+              await sendOrderStatusEmail({ to: user[0].email, name: user[0].name, order, status: 'arrived' });
             }
           } catch (e) {
-            console.error('[OrderEmail] Delivered notification failed:', e.message);
+            console.error('[OrderEmail] Arrived notification failed:', e.message);
           }
         }
       }

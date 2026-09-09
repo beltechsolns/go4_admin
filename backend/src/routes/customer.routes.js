@@ -83,6 +83,8 @@ router.post('/orders/:id/rate-driver', customerAuth, orders.rateDriver);
 router.put('/orders/:id/status', customerAuth, orders.updateOrderStatus);
 router.put('/orders/:id/cancel', customerAuth, orders.cancelOrder);
 router.put('/orders/:id/confirm-delivery', customerAuth, orders.confirmDelivery);
+router.post('/orders/:id/rate-restaurant', customerAuth, orders.rateRestaurant);
+router.post('/orders/:id/rate-order', customerAuth, orders.rateOrder);
 
 // Profile
 router.get('/profile', customerAuth, profile.getProfile);

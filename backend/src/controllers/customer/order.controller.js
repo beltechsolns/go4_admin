@@ -137,7 +137,7 @@ export const getOrders = async (req, res, next) => {
 
     if (status === 'active') {
       conditions.push('status = ANY($' + idx + '::text[])');
-      params.push(['accepted', 'picked_up', 'in_transit']);
+      params.push(['accepted', 'picked_up', 'in_transit', 'arrived']);
       idx++;
     } else if (status) {
       conditions.push('status = $' + idx);
@@ -187,7 +187,7 @@ export const getOrderByID = async (req, res, next) => {
 export const updateOrderStatus = async (req, res, next) => {
   try {
     const { status, rider_id } = req.body;
-    const validStatuses = ['accepted', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
+    const validStatuses = ['accepted', 'picked_up', 'in_transit', 'arrived', 'delivered', 'cancelled'];
     if (!validStatuses.includes(status))
       return res.status(400).json({ success: false, message: 'Invalid status' });
 
@@ -523,11 +523,13 @@ export const trackOrder = async (req, res, next) => {
           arrived,
           message: !rider
             ? 'Waiting for a rider to accept the order'
-            : arrived
+            : arrived && order.status !== 'arrived'
               ? 'Rider has arrived at your location'
-              : pickupStops.length > 1
-                ? `Rider is picking up from ${pickupStops.length} restaurants, ${eta_minutes} min to you`
-                : `Rider is heading to ${pickupStops[0]?.store_name || 'the restaurant'}, ${eta_minutes} min to you`,
+              : order.status === 'arrived'
+                ? 'Rider is waiting. Please confirm receipt.'
+                : pickupStops.length > 1
+                  ? `Rider is picking up from ${pickupStops.length} restaurants, ${eta_minutes} min to you`
+                  : `Rider is heading to ${pickupStops[0]?.store_name || 'the restaurant'}, ${eta_minutes} min to you`,
         },
         route: route ? {
           geometry: route.geometry,
@@ -582,7 +584,7 @@ export const confirmDelivery = async (req, res, next) => {
     );
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     if (order.status === 'delivered') return res.status(400).json({ success: false, message: 'Order already delivered' });
-    if (order.status !== 'in_transit') return res.status(400).json({ success: false, message: 'Order must be in transit to confirm' });
+    if (order.status !== 'arrived') return res.status(400).json({ success: false, message: 'Order must be arrived to confirm delivery' });
 
     const { rows } = await query(
       "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE id = $1 RETURNING *",
@@ -603,6 +605,75 @@ export const confirmDelivery = async (req, res, next) => {
       title: 'Order Delivered',
       message: `Your order "${rows[0].order_name}" has been delivered. Enjoy!`,
     });
+
+    // Also deliver all orders in group if grouped
+    if (order.delivery_group_id) {
+      await query(
+        "UPDATE customer_orders SET customer_delivered_at = NOW(), status = 'delivered', updated_at = NOW() WHERE delivery_group_id = $1 AND status = 'arrived'",
+        [order.delivery_group_id]
+      );
+    }
+
+    res.json({ success: true, data: rows[0] });
+  } catch (err) { next(err); }
+};
+
+export const rateRestaurant = async (req, res, next) => {
+  try {
+    const { rating, review } = req.body;
+    if (!rating || rating < 1 || rating > 5)
+      return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+
+    const { rows: [order] } = await query(
+      'SELECT * FROM customer_orders WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.status !== 'delivered') return res.status(400).json({ success: false, message: 'Order must be delivered before rating' });
+
+    const { rows } = await query(
+      `INSERT INTO ratings (store_id, user_id, rating) VALUES ($1, $2, $3)
+       ON CONFLICT (store_id, user_id) DO UPDATE SET rating = EXCLUDED.rating
+       RETURNING *`,
+      [order.store_id, req.user.id, rating]
+    );
+
+    const avg = await query('SELECT ROUND(AVG(rating), 1) AS avg_rating, COUNT(*) AS count FROM ratings WHERE store_id = $1', [order.store_id]);
+
+    res.json({
+      success: true,
+      data: {
+        rating: rows[0],
+        average_rating: parseFloat(avg.rows[0].avg_rating),
+        reviews_count: parseInt(avg.rows[0].count),
+      },
+    });
+  } catch (err) { next(err); }
+};
+
+export const rateOrder = async (req, res, next) => {
+  try {
+    const { food_quality, delivery_speed, overall } = req.body;
+    if (!overall || overall < 1 || overall > 5)
+      return res.status(400).json({ success: false, message: 'Overall rating must be between 1 and 5' });
+
+    const { rows: [order] } = await query(
+      'SELECT * FROM customer_orders WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.status !== 'delivered') return res.status(400).json({ success: false, message: 'Order must be delivered before rating' });
+
+    const { rows } = await query(
+      `INSERT INTO order_ratings (order_id, user_id, food_quality, delivery_speed, overall)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (order_id, user_id) DO UPDATE SET
+         food_quality = EXCLUDED.food_quality,
+         delivery_speed = EXCLUDED.delivery_speed,
+         overall = EXCLUDED.overall
+       RETURNING *`,
+      [order.id, req.user.id, food_quality || null, delivery_speed || null, overall]
+    );
 
     res.json({ success: true, data: rows[0] });
   } catch (err) { next(err); }
