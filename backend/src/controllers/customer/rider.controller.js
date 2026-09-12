@@ -23,28 +23,103 @@ export const getDashboard = async (req, res, next) => {
     const riderId = await resolveRiderId(req.user.id);
     if (!riderId) return res.status(404).json({ success: false, message: 'Rider profile not found' });
 
-    const [activeOrders, completedToday, totalDelivered, today, week, month, allTime] = await Promise.all([
-      query("SELECT COUNT(*) AS count FROM customer_orders WHERE rider_id = $1 AND status IN ('accepted','picked_up','in_transit')", [riderId]),
+    const [statusResult, activeOrders, completedToday, totalDelivered, today, week, month, allTime, availableCount, currentOrders, availableOrders] = await Promise.all([
+      query("SELECT status FROM riders WHERE id = $1", [riderId]),
+      query("SELECT COUNT(*) AS count FROM customer_orders WHERE rider_id = $1 AND status IN ('accepted','picked_up','in_transit','arrived')", [riderId]),
       query("SELECT COUNT(*) AS count FROM customer_orders WHERE rider_id = $1 AND status = 'delivered' AND created_at >= CURRENT_DATE", [riderId]),
       query("SELECT COUNT(*) AS count FROM customer_orders WHERE rider_id = $1 AND status = 'delivered'", [riderId]),
       query("SELECT COALESCE(SUM(total_price), 0) AS total FROM customer_orders WHERE rider_id = $1 AND status = 'delivered' AND created_at >= CURRENT_DATE", [riderId]),
       query("SELECT COALESCE(SUM(total_price), 0) AS total FROM customer_orders WHERE rider_id = $1 AND status = 'delivered' AND created_at >= NOW() - INTERVAL '7 days'", [riderId]),
       query("SELECT COALESCE(SUM(total_price), 0) AS total FROM customer_orders WHERE rider_id = $1 AND status = 'delivered' AND created_at >= NOW() - INTERVAL '30 days'", [riderId]),
       query("SELECT COALESCE(SUM(total_price), 0) AS total FROM customer_orders WHERE rider_id = $1 AND status = 'delivered'", [riderId]),
+      query(`SELECT COUNT(DISTINCT COALESCE(delivery_group_id, CAST(id AS TEXT))) AS count FROM customer_orders WHERE status = 'pending'`, []),
+      query(
+        `SELECT co.id, co.order_name, co.total_price, co.delivery_address, co.status, co.created_at,
+          u.name AS user_name, u.phone AS user_phone,
+          (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = co.id) AS items_count
+        FROM customer_orders co
+        LEFT JOIN users u ON u.id = co.user_id
+        WHERE co.rider_id = $1 AND co.status IN ('accepted','picked_up','in_transit','arrived')
+        ORDER BY co.created_at DESC`, [riderId]
+      ),
+      // Available orders (not assigned to any rider)
+      query(
+        `WITH grouped AS (
+          SELECT delivery_group_id, COUNT(*) AS order_count, SUM(total_price) AS total_price,
+            MAX(delivery_address) AS delivery_address, MAX(delivery_lat) AS delivery_lat, MAX(delivery_lng) AS delivery_lng,
+            MAX(user_id) AS user_id, MIN(created_at) AS created_at,
+            array_agg(DISTINCT store_id) AS store_ids
+          FROM customer_orders
+          WHERE status = 'pending' AND delivery_group_id IS NOT NULL
+          GROUP BY delivery_group_id
+        ),
+        singles AS (
+          SELECT co.id, co.order_name, co.total_price, co.delivery_address, co.delivery_lat, co.delivery_lng,
+            co.user_id, co.created_at, co.store_id, 1 AS order_count, ARRAY[co.store_id] AS store_ids
+          FROM customer_orders co
+          WHERE co.status = 'pending' AND co.delivery_group_id IS NULL
+        )
+        SELECT * FROM (
+          SELECT g.delivery_group_id AS id, 'Group #' || g.delivery_group_id AS order_name, g.total_price,
+            g.delivery_address, g.delivery_lat, g.delivery_lng, g.user_id, g.created_at,
+            g.store_ids, g.order_count, 'grouped' AS type
+          FROM grouped g
+          UNION ALL
+          SELECT s.id, s.order_name, s.total_price, s.delivery_address, s.delivery_lat, s.delivery_lng,
+            s.user_id, s.created_at, s.store_ids, s.order_count, 'single' AS type
+          FROM singles s
+        ) combined
+        ORDER BY created_at DESC LIMIT 10`, []
+      ),
     ]);
+
+    // Enrich current orders with store info
+    for (const order of currentOrders.rows) {
+      order.orderName = order.order_name;
+      const { rows: storeRows } = await query(
+        'SELECT name, latitude, longitude FROM stores WHERE id = (SELECT store_id FROM customer_orders WHERE id = $1)',
+        [order.id]
+      );
+      if (storeRows.length) {
+        order.store_name = storeRows[0].name;
+        order.store_lat = storeRows[0].latitude;
+        order.store_lng = storeRows[0].longitude;
+      }
+    }
+
+    // Enrich available orders with store info
+    for (const order of availableOrders.rows) {
+      order.orderName = order.order_name;
+      const { rows: stores } = await query(
+        'SELECT id, name, location, latitude, longitude, phone FROM stores WHERE id = ANY($1)',
+        [order.store_ids]
+      );
+      order.stores = stores;
+      if (order.user_id) {
+        const { rows: users } = await query('SELECT name, phone FROM users WHERE id = $1', [order.user_id]);
+        if (users.length) {
+          order.user_name = users[0].name;
+          order.user_phone = users[0].phone;
+        }
+      }
+    }
 
     res.json({
       success: true,
       data: {
+        status: statusResult.rows[0]?.status || 'Offline',
         active_orders: parseInt(activeOrders.rows[0].count),
         completed_today: parseInt(completedToday.rows[0].count),
         total_deliveries: parseInt(totalDelivered.rows[0].count),
+        available_orders_count: parseInt(availableCount.rows[0].count),
         earnings: {
           today: parseFloat(today.rows[0].total),
           this_week: parseFloat(week.rows[0].total),
           this_month: parseFloat(month.rows[0].total),
           total: parseFloat(allTime.rows[0].total),
         },
+        current_orders: currentOrders.rows,
+        available_orders: availableOrders.rows,
       },
     });
   } catch (err) { next(err); }
@@ -55,22 +130,47 @@ export const getEarnings = async (req, res, next) => {
     const riderId = await resolveRiderId(req.user.id);
     if (!riderId) return res.status(404).json({ success: false, message: 'Rider profile not found' });
 
-    const { period = 'week' } = req.query;
+    // Get all-time stats
+    const [totalResult, todayResult, pendingResult, completedResult, totalOrdersResult] = await Promise.all([
+      query("SELECT COALESCE(SUM(total_price), 0) AS total FROM customer_orders WHERE rider_id = $1 AND status = 'delivered'", [riderId]),
+      query("SELECT COALESCE(SUM(total_price), 0) AS total FROM customer_orders WHERE rider_id = $1 AND status = 'delivered' AND created_at >= CURRENT_DATE", [riderId]),
+      query("SELECT COALESCE(SUM(total_price), 0) AS total FROM customer_orders WHERE rider_id = $1 AND status = 'arrived'", [riderId]),
+      query("SELECT COUNT(*) AS count FROM customer_orders WHERE rider_id = $1 AND status = 'delivered'", [riderId]),
+      query("SELECT COUNT(*) AS count FROM customer_orders WHERE rider_id = $1", [riderId]),
+    ]);
+
+    // Get daily entries for the period
+    const { period = 'month' } = req.query;
     let interval;
     if (period === 'week') interval = "INTERVAL '7 days'";
     else if (period === 'month') interval = "INTERVAL '30 days'";
     else if (period === 'today') interval = "INTERVAL '1 day'";
-    else interval = "INTERVAL '7 days'";
+    else interval = "INTERVAL '30 days'";
 
     const { rows } = await query(
-      `SELECT DATE(created_at) AS date, COUNT(*) AS orders, COALESCE(SUM(total_price), 0) AS earnings FROM customer_orders WHERE rider_id = $1 AND status = 'delivered' AND created_at >= NOW() - ${interval} GROUP BY DATE(created_at) ORDER BY date`,
+      `SELECT DATE(created_at) AS date, COUNT(*) AS orders, COALESCE(SUM(total_price), 0) AS earnings
+       FROM customer_orders
+       WHERE rider_id = $1 AND status = 'delivered' AND created_at >= NOW() - ${interval}
+       GROUP BY DATE(created_at)
+       ORDER BY date DESC`,
       [riderId]
     );
 
-    const total = rows.reduce((sum, r) => sum + parseFloat(r.earnings), 0);
-    const orders = rows.reduce((sum, r) => sum + parseInt(r.orders), 0);
-
-    res.json({ success: true, data: rows, total_earnings: total, total_orders: orders });
+    res.json({
+      success: true,
+      data: {
+        total_earnings: parseFloat(totalResult.rows[0].total),
+        today_earnings: parseFloat(todayResult.rows[0].total),
+        pending_earnings: parseFloat(pendingResult.rows[0].total),
+        completed_orders: parseInt(completedResult.rows[0].count),
+        total_orders: parseInt(totalOrdersResult.rows[0].count),
+        entries: rows.map(r => ({
+          date: r.date,
+          orders: parseInt(r.orders),
+          earnings: parseFloat(r.earnings),
+        })),
+      },
+    });
   } catch (err) { next(err); }
 };
 
