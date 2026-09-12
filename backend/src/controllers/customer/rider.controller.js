@@ -60,12 +60,12 @@ export const getDashboard = async (req, res, next) => {
           WHERE co.status = 'pending' AND co.delivery_group_id IS NULL
         )
         SELECT * FROM (
-          SELECT g.delivery_group_id AS id, 'Group #' || g.delivery_group_id AS order_name, g.total_price,
+          SELECT g.delivery_group_id::TEXT AS id, 'Group #' || g.delivery_group_id AS order_name, g.total_price,
             g.delivery_address, g.delivery_lat, g.delivery_lng, g.user_id, g.created_at,
             g.store_ids, g.order_count, 'grouped' AS type
           FROM grouped g
           UNION ALL
-          SELECT s.id, s.order_name, s.total_price, s.delivery_address, s.delivery_lat, s.delivery_lng,
+          SELECT s.id::TEXT, s.order_name, s.total_price, s.delivery_address, s.delivery_lat, s.delivery_lng,
             s.user_id, s.created_at, s.store_ids, s.order_count, 'single' AS type
           FROM singles s
         ) combined
@@ -211,12 +211,12 @@ export const getAvailableOrders = async (req, res, next) => {
         WHERE co.status = 'pending' AND co.delivery_group_id IS NULL
       )
       SELECT * FROM (
-        SELECT g.delivery_group_id AS id, 'Group #' || g.delivery_group_id AS order_name, g.total_price,
+        SELECT g.delivery_group_id::TEXT AS id, 'Group #' || g.delivery_group_id AS order_name, g.total_price,
           g.delivery_address, g.delivery_lat, g.delivery_lng, g.user_id, g.notes, g.created_at,
           g.store_ids, g.order_count, 'grouped' AS type
         FROM grouped g
         UNION ALL
-        SELECT s.id, s.order_name, s.total_price, s.delivery_address, s.delivery_lat, s.delivery_lng,
+        SELECT s.id::TEXT, s.order_name, s.total_price, s.delivery_address, s.delivery_lat, s.delivery_lng,
           s.user_id, s.notes, s.created_at, s.store_ids, s.order_count, 'single' AS type
         FROM singles s
       ) combined
