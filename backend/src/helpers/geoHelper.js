@@ -15,7 +15,7 @@ export function haversineKm(lat1, lng1, lat2, lng2) {
 
 // Average delivery speed in km/h (bike/scooter in city)
 const AVG_SPEED_KMH = 25;
-const ARRIVED_THRESHOLD_KM = 0.5;
+const ARRIVED_THRESHOLD_KM = 0.05;
 
 export function computeEtaMinutes(distanceKm) {
   if (distanceKm == null) return null;

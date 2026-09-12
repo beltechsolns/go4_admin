@@ -523,10 +523,10 @@ export const trackOrder = async (req, res, next) => {
           arrived,
           message: !rider
             ? 'Waiting for a rider to accept the order'
-            : arrived && order.status !== 'arrived'
-              ? 'Rider has arrived at your location'
-              : order.status === 'arrived'
-                ? 'Rider is waiting. Please confirm receipt.'
+            : order.status === 'arrived'
+              ? 'Rider is waiting. Please confirm receipt.'
+              : order.status === 'delivered'
+                ? 'Order delivered. Enjoy!'
                 : pickupStops.length > 1
                   ? `Rider is picking up from ${pickupStops.length} restaurants, ${eta_minutes} min to you`
                   : `Rider is heading to ${pickupStops[0]?.store_name || 'the restaurant'}, ${eta_minutes} min to you`,
