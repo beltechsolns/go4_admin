@@ -361,26 +361,29 @@ export const trackOrder = async (req, res, next) => {
       }
     }
 
-    // Distance & ETA — multi-stop route for grouped orders
+    // Distance & ETA — different route based on order status
     let distance_km = null;
     let eta_minutes = null;
     let arrived = false;
     let route = null;
 
     if (rider && rider.current_lat != null && rider.current_lng != null) {
-      if (order.delivery_group_id && pickupStops.length > 1) {
-        // Multi-stop: Rider → Restaurant A → Restaurant B → Customer
-        const waypoints = pickupStops
-          .filter(s => s.store_lat && s.store_lng)
-          .map(s => `${s.store_lng},${s.store_lat}`);
+      const riderLat = parseFloat(rider.current_lat);
+      const riderLng = parseFloat(rider.current_lng);
 
-        const destLng = order.delivery_lng;
-        const destLat = order.delivery_lat;
+      // Get store location for all cases
+      const { rows: storeRows } = await query(
+        'SELECT name, latitude, longitude FROM stores WHERE id = $1',
+        [order.store_id]
+      );
+      const storeName = storeRows.length ? storeRows[0].name : 'the restaurant';
+      const storeLat = storeRows.length ? parseFloat(storeRows[0].latitude) : null;
+      const storeLng = storeRows.length ? parseFloat(storeRows[0].longitude) : null;
 
-        if (waypoints.length && destLng && destLat) {
-          const allPoints = [`${rider.current_lng},${rider.current_lat}`, ...waypoints, `${destLng},${destLat}`];
-          const url = `http://router.project-osrm.org/route/v1/driving/${allPoints.join(';')}?overview=full&geometries=geojson&steps=true`;
-
+      if (order.status === 'accepted') {
+        // Rider heading to restaurant to pick up
+        if (storeLat && storeLng) {
+          const url = `http://router.project-osrm.org/route/v1/driving/${riderLng},${riderLat};${storeLng},${storeLat}?overview=full&geometries=geojson&steps=true`;
           try {
             const res2 = await fetch(url);
             const data = await res2.json();
@@ -390,51 +393,34 @@ export const trackOrder = async (req, res, next) => {
                 geometry: r.geometry,
                 distance_km: parseFloat((r.distance / 1000).toFixed(2)),
                 duration_minutes: Math.max(1, Math.round(r.duration / 60)),
-                steps: r.legs.flatMap((leg, i) => {
-                  const label = i < pickupStops.length
-                    ? `Pickup at ${pickupStops[i].store_name}`
-                    : 'Deliver to customer';
-                  return leg.steps.map(s => ({
-                    instruction: s.maneuver.type === 'depart' ? 'Head to ' + (pickupStops[0]?.store_name || 'restaurant')
-                      : s.maneuver.type === 'arrive' && i < pickupStops.length ? `Arrived at ${pickupStops[i].store_name}`
-                      : i === pickupStops.length && s.maneuver.type === 'arrive' ? 'Arrive at customer'
-                      : `${s.maneuver.modifier || ''} on ${s.name || 'road'}`.trim(),
-                    distance_km: parseFloat((s.distance / 1000).toFixed(2)),
-                    duration_minutes: Math.max(1, Math.round(s.duration / 60)),
-                    maneuver: s.maneuver.type,
-                    leg: label,
-                  }));
-                }),
+                steps: r.legs[0].steps.map(s => ({
+                  instruction: s.maneuver.type === 'depart' ? `Head to ${storeName}`
+                    : s.maneuver.type === 'arrive' ? `Arrived at ${storeName}`
+                    : `${s.maneuver.modifier || ''} on ${s.name || 'road'}`.trim(),
+                  distance_km: parseFloat((s.distance / 1000).toFixed(2)),
+                  duration_minutes: Math.max(1, Math.round(s.duration / 60)),
+                  maneuver: s.maneuver.type,
+                  leg: `Pickup at ${storeName}`,
+                })),
               };
               distance_km = route.distance_km;
               eta_minutes = route.duration_minutes;
-              arrived = hasArrived(distance_km);
             }
           } catch (e) {
-            console.error('[OSRM] Multi-stop route failed:', e.message);
+            console.error('[OSRM] Pickup route failed:', e.message);
+          }
+          // Fallback to haversine
+          if (!route) {
+            distance_km = haversineKm(riderLat, riderLng, storeLat, storeLng);
+            eta_minutes = computeEtaMinutes(distance_km);
           }
         }
-      }
-
-      // Single route: Rider → Restaurant → Customer
-      if (!route && order.delivery_lat && order.delivery_lng) {
-        // Get store location
-        const { rows: storeRows } = await query(
-          'SELECT name, latitude, longitude FROM stores WHERE id = $1',
-          [order.store_id]
-        );
-
-        if (storeRows.length && storeRows[0].latitude && storeRows[0].longitude) {
-          const storeLat = parseFloat(storeRows[0].latitude);
-          const storeLng = parseFloat(storeRows[0].longitude);
-          const riderLat = parseFloat(rider.current_lat);
-          const riderLng = parseFloat(rider.current_lng);
-          const destLat = parseFloat(order.delivery_lat);
-          const destLng = parseFloat(order.delivery_lng);
-
-          const allPoints = [`${riderLng},${riderLat}`, `${storeLng},${storeLat}`, `${destLng},${destLat}`];
-          const url = `http://router.project-osrm.org/route/v1/driving/${allPoints.join(';')}?overview=full&geometries=geojson&steps=true`;
-
+      } else if (order.status === 'picked_up' || order.status === 'in_transit') {
+        // Rider heading to customer
+        const destLat = parseFloat(order.delivery_lat);
+        const destLng = parseFloat(order.delivery_lng);
+        if (destLat && destLng) {
+          const url = `http://router.project-osrm.org/route/v1/driving/${riderLng},${riderLat};${destLng},${destLat}?overview=full&geometries=geojson&steps=true`;
           try {
             const res2 = await fetch(url);
             const data = await res2.json();
@@ -444,42 +430,32 @@ export const trackOrder = async (req, res, next) => {
                 geometry: r.geometry,
                 distance_km: parseFloat((r.distance / 1000).toFixed(2)),
                 duration_minutes: Math.max(1, Math.round(r.duration / 60)),
-                steps: r.legs.flatMap((leg, i) => {
-                  const label = i === 0
-                    ? `Pickup at ${storeRows[0].name}`
-                    : 'Deliver to customer';
-                  return leg.steps.map(s => ({
-                    instruction: s.maneuver.type === 'depart' ? `Head to ${storeRows[0].name}`
-                      : s.maneuver.type === 'arrive' && i === 0 ? `Arrived at ${storeRows[0].name}`
-                      : s.maneuver.type === 'arrive' && i === 1 ? 'Arrive at customer'
-                      : `${s.maneuver.modifier || ''} on ${s.name || 'road'}`.trim(),
-                    distance_km: parseFloat((s.distance / 1000).toFixed(2)),
-                    duration_minutes: Math.max(1, Math.round(s.duration / 60)),
-                    maneuver: s.maneuver.type,
-                    leg: label,
-                  }));
-                }),
+                steps: r.legs[0].steps.map(s => ({
+                  instruction: s.maneuver.type === 'depart' ? 'Head to customer'
+                    : s.maneuver.type === 'arrive' ? 'Arrive at customer'
+                    : `${s.maneuver.modifier || ''} on ${s.name || 'road'}`.trim(),
+                  distance_km: parseFloat((s.distance / 1000).toFixed(2)),
+                  duration_minutes: Math.max(1, Math.round(s.duration / 60)),
+                  maneuver: s.maneuver.type,
+                  leg: 'Deliver to customer',
+                })),
               };
               distance_km = route.distance_km;
               eta_minutes = route.duration_minutes;
-              arrived = hasArrived(distance_km);
             }
           } catch (e) {
-            console.error('[OSRM] Single route failed:', e.message);
+            console.error('[OSRM] Delivery route failed:', e.message);
+          }
+          // Fallback to haversine
+          if (!route) {
+            distance_km = haversineKm(riderLat, riderLng, destLat, destLng);
+            eta_minutes = computeEtaMinutes(distance_km);
           }
         }
-
-        // Fallback to haversine if OSRM failed
-        if (!route) {
-          distance_km = haversineKm(
-            parseFloat(rider.current_lat),
-            parseFloat(rider.current_lng),
-            parseFloat(order.delivery_lat),
-            parseFloat(order.delivery_lng)
-          );
-          eta_minutes = computeEtaMinutes(distance_km);
-          arrived = hasArrived(distance_km);
-        }
+      } else if (order.status === 'arrived') {
+        distance_km = 0;
+        eta_minutes = 0;
+        arrived = true;
       }
     }
 
@@ -527,9 +503,11 @@ export const trackOrder = async (req, res, next) => {
               ? 'Rider is waiting. Please confirm receipt.'
               : order.status === 'delivered'
                 ? 'Order delivered. Enjoy!'
-                : pickupStops.length > 1
-                  ? `Rider is picking up from ${pickupStops.length} restaurants, ${eta_minutes} min to you`
-                  : `Rider is heading to ${pickupStops[0]?.store_name || 'the restaurant'}, ${eta_minutes} min to you`,
+                : order.status === 'accepted'
+                  ? `Rider is heading to ${pickupStops[0]?.store_name || 'the restaurant'} to pick up, ${eta_minutes} min`
+                  : order.status === 'picked_up'
+                    ? `Rider has picked up, heading to you, ${eta_minutes} min`
+                    : `Rider is on the way to you, ${eta_minutes} min`,
         },
         route: route ? {
           geometry: route.geometry,
