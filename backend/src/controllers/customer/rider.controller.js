@@ -259,12 +259,28 @@ export const getAvailableOrders = async (req, res, next) => {
           [order.id]
         );
         order.items_count = parseInt(itemCnt[0].items_count);
+        // Fetch items for the whole delivery group
+        const { rows: items } = await query(
+          `SELECT oi.product_id, oi.product_name, oi.quantity, oi.price
+           FROM order_items oi
+           JOIN customer_orders co ON co.id = oi.order_id
+           WHERE co.delivery_group_id = $1
+           ORDER BY oi.id LIMIT 50`,
+          [order.id]
+        );
+        order.items = items;
       } else {
         const { rows: itemCnt } = await query(
           'SELECT COUNT(*) AS items_count FROM order_items WHERE order_id = $1',
           [order.id]
         );
         order.items_count = parseInt(itemCnt[0].items_count);
+        // Fetch items for this single order
+        const { rows: items } = await query(
+          'SELECT product_id, product_name, quantity, price FROM order_items WHERE order_id = $1 ORDER BY id LIMIT 50',
+          [order.id]
+        );
+        order.items = items;
       }
     }
 
