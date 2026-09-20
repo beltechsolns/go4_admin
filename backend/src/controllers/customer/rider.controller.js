@@ -389,25 +389,20 @@ export const acceptOrder = async (req, res, next) => {
   try {
     const riderId = await resolveRiderId(req.user.id);
     if (!riderId) return res.status(404).json({ success: false, message: 'Rider profile not found' });
-
-    const { rows } = await query(
-      "SELECT * FROM customer_orders WHERE id = $1 AND status = 'pending'",
-      [req.params.id]
+    // Try to atomically accept the whole delivery group (if the order belongs to one).
+    // This avoids a race where two riders read the order as pending and both attempt to accept.
+    const { rows: groupAccepted } = await query(
+      `WITH target AS (SELECT delivery_group_id FROM customer_orders WHERE id = $1)
+       UPDATE customer_orders SET status = 'accepted', rider_id = $2, updated_at = NOW()
+       WHERE delivery_group_id = (SELECT delivery_group_id FROM target) AND delivery_group_id IS NOT NULL AND status = 'pending'
+       RETURNING *`,
+      [req.params.id, riderId]
     );
-    if (!rows.length) return res.status(400).json({ success: false, message: 'Order not available' });
 
-    const order = rows[0];
-    let acceptedOrders;
+    let acceptedOrders = groupAccepted;
 
-    if (order.delivery_group_id) {
-      // Accept ALL orders in the delivery group
-      const { rows: group } = await query(
-        "UPDATE customer_orders SET status = 'accepted', rider_id = $1, updated_at = NOW() WHERE delivery_group_id = $2 AND status = 'pending' RETURNING *",
-        [riderId, order.delivery_group_id]
-      );
-      acceptedOrders = group;
-    } else {
-      // Single order - accept just this one
+    if (!acceptedOrders.length) {
+      // Fallback: attempt to accept the single order atomically
       const { rows: single } = await query(
         "UPDATE customer_orders SET status = 'accepted', rider_id = $1, updated_at = NOW() WHERE id = $2 AND status = 'pending' RETURNING *",
         [riderId, req.params.id]
