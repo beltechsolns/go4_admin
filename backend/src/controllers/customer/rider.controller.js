@@ -1,7 +1,7 @@
 import { query } from '../../config/db.js';
 import { resolveRiderId } from '../../helpers/riderHelper.js';
 import { sendOrderStatusEmail } from '../../helpers/emailHelper.js';
-import { createNotification } from '../../helpers/notifyHelper.js';
+import { notifyUser } from '../../helpers/notifyHelper.js';
 import { haversineKm } from '../../helpers/geoHelper.js';
 
 async function notifyOrderStatus(order, status) {
@@ -439,9 +439,10 @@ export const acceptOrder = async (req, res, next) => {
       const countText = acceptedOrders.length > 1
         ? `all ${acceptedOrders.length} orders from your delivery`
         : `your order "${firstOrder.order_name}"`;
-      createNotification(firstOrder.user_id, {
+      notifyUser(firstOrder.user_id, {
         title: 'Rider Accepted',
         message: `${rider[0]?.full_name || 'A rider'} has accepted ${countText}.`,
+        data: { type: 'order_status', order_id: firstOrder.id, status: 'accepted' },
       });
     }
 
@@ -486,9 +487,10 @@ export const startDelivery = async (req, res, next) => {
     }
 
     if (order.user_id) {
-      createNotification(order.user_id, {
+      notifyUser(order.user_id, {
         title: 'Out for Delivery',
         message: `Your order "${order.order_name}" is on the way!`,
+        data: { type: 'order_status', order_id: order.id, status: 'in_transit' },
       });
     }
 
@@ -530,9 +532,10 @@ export const pickupOrder = async (req, res, next) => {
         [order.store_id]
       );
       const storeName = stores.length ? stores[0].name : 'the restaurant';
-      createNotification(order.user_id, {
+      notifyUser(order.user_id, {
         title: 'Order Picked Up',
         message: `Rider has picked up your order from ${storeName}.`,
+        data: { type: 'order_status', order_id: order.id, status: 'picked_up' },
       });
     }
 
@@ -569,9 +572,10 @@ export const completeDelivery = async (req, res, next) => {
     }
 
     if (order.user_id) {
-      createNotification(order.user_id, {
+      notifyUser(order.user_id, {
         title: 'Rider Arrived',
         message: `Your rider has arrived at your location for "${order.order_name}". Please confirm receipt.`,
+        data: { type: 'order_status', order_id: order.id, status: 'arrived' },
       });
 
       try {
@@ -639,9 +643,10 @@ export const updateLocation = async (req, res, next) => {
             );
           }
 
-          createNotification(order.user_id, {
+          notifyUser(order.user_id, {
             title: 'Rider Arrived',
             message: `Your rider has arrived at your location for "${order.order_name}". Please confirm receipt.`,
+            data: { type: 'order_status', order_id: order.id, status: 'arrived' },
           });
 
           try {

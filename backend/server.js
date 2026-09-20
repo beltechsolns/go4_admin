@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
 import { pool } from './src/config/db.js';
+import { initFirebase } from './src/config/firebase.js';
 import errorHandler from './src/middleware/errorHandler.js';
 
 import authRoutes from './src/routes/auth.routes.js';
@@ -92,6 +93,8 @@ app.use(errorHandler);
 // Connect to DB then start server
 async function startServer() {
   try {
+    initFirebase();
+
     const client = await pool.connect();
     client.release();
     console.log('✅ PostgreSQL connected');

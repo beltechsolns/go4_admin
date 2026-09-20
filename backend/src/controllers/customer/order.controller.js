@@ -3,7 +3,7 @@ import { haversineKm, computeEtaMinutes, hasArrived } from '../../helpers/geoHel
 import { getRouteDirections } from '../../helpers/directionHelper.js';
 import { fixItemImages } from '../../helpers/imageHelper.js';
 import { sendOrderConfirmationEmail, sendOrderStatusEmail } from '../../helpers/emailHelper.js';
-import { notifyUser, createNotification } from '../../helpers/notifyHelper.js';
+import { notifyUser } from '../../helpers/notifyHelper.js';
 
 export const createOrder = async (req, res, next) => {
   try {
@@ -106,17 +106,19 @@ export const createOrder = async (req, res, next) => {
       console.error('[OrderEmail] Confirmation send failed:', mailErr.message);
     }
 
-    createNotification(req.user.id, {
+    notifyUser(req.user.id, {
       title: 'Order Placed',
       message: `Your order${createdOrders.length > 1 ? 's have' : ' has'} been placed successfully. Total: ETB ${totalAll.toFixed(2)}`,
+      data: { type: 'order_status', order_id: createdOrders[0].id, status: 'pending' },
     });
 
     try {
       const { rows: admins } = await query("SELECT id FROM users WHERE role = 'admin'");
       for (const admin of admins) {
-        createNotification(admin.id, {
+        notifyUser(admin.id, {
           title: 'New Order',
           message: `New order(s) from ${user[0].name}. Total: ETB ${totalAll.toFixed(2)}`,
+          data: { type: 'new_order', order_id: createdOrders[0].id },
         });
       }
     } catch (e) {
@@ -353,9 +355,10 @@ export const trackOrder = async (req, res, next) => {
           }
           order.status = 'cancelled';
 
-          createNotification(order.user_id, {
+          notifyUser(order.user_id, {
             title: 'Order Cancelled',
             message: `Your order "${order.order_name}" has been cancelled because the rider went offline.`,
+            data: { type: 'order_status', order_id: order.id, status: 'cancelled' },
           });
         }
       }
@@ -579,9 +582,10 @@ export const confirmDelivery = async (req, res, next) => {
       console.error('[OrderEmail] Delivered notification failed:', e.message);
     }
 
-    createNotification(req.user.id, {
+    notifyUser(req.user.id, {
       title: 'Order Delivered',
       message: `Your order "${rows[0].order_name}" has been delivered. Enjoy!`,
+      data: { type: 'order_status', order_id: rows[0].id, status: 'delivered' },
     });
 
     // Also deliver all orders in group if grouped

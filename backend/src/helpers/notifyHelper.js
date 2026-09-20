@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import { getFirebaseAdmin } from '../config/firebase.js';
 
 /**
  * Insert an in-app notification for a user.
@@ -14,22 +15,23 @@ export async function createNotification(userId, { title, message }) {
   }
 }
 
-/**
- * Send push notification via FCM (if device token exists).
- * Requires firebase-admin SDK initialized.
- */
-let admin = null;
-try {
-  const firebaseAdmin = await import('firebase-admin');
-  if (firebaseAdmin.default?.apps?.length) {
-    admin = firebaseAdmin.default;
+function stringifyData(data) {
+  const out = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value != null) out[key] = String(value);
   }
-} catch {
-  // firebase-admin not installed — push disabled
+  return out;
 }
 
+/**
+ * Send push notification via FCM (if device token exists).
+ */
 export async function sendPushNotification(userId, { title, body, data = {} }) {
-  if (!admin) return;
+  const admin = getFirebaseAdmin();
+  if (!admin) {
+    console.warn(`[Push] Firebase Admin not initialized — skipping push for user ${userId}`);
+    return;
+  }
 
   try {
     const { rows } = await query(
@@ -38,29 +40,37 @@ export async function sendPushNotification(userId, { title, body, data = {} }) {
     );
     if (!rows.length) return;
 
-    const tokens = rows.map(r => r.token);
+    const tokens = rows.map((r) => r.token);
     const message = {
       notification: { title, body },
-      data,
+      data: stringifyData(data),
       tokens,
     };
 
     const response = await admin.messaging().sendEachForMulticast(message);
-    // Remove invalid tokens
     response.responses.forEach((resp, idx) => {
       if (resp.error?.code === 'messaging/registration-token-not-registered') {
         query('DELETE FROM device_tokens WHERE token = $1', [tokens[idx]]);
       }
     });
+
+    const sent = response.successCount;
+    if (sent > 0) {
+      console.log(`[Push] Sent to user ${userId} (${sent}/${tokens.length} devices)`);
+    }
   } catch (err) {
-    console.error('[Push] Send failed:', err.message);
+    console.error('[Push] Send failed:', err?.message || err);
   }
 }
 
 /**
  * Create in-app notification + send push (combined helper).
  */
-export async function notifyUser(userId, { title, message, pushBody }) {
+export async function notifyUser(userId, { title, message, pushBody, data = {} }) {
   await createNotification(userId, { title, message });
-  await sendPushNotification(userId, { title, body: pushBody || message });
+  await sendPushNotification(userId, {
+    title,
+    body: pushBody || message,
+    data: { ...data, title, body: pushBody || message },
+  });
 }
