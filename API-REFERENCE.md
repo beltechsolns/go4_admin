@@ -130,5 +130,7 @@ When creating a product, `category_id` refers to this global list.
 
 ## Important reminders
 - **`/locations` = customer saved addresses; `/rider/location` = driver live GPS** — do not confuse.
+- **Tracking/order flows must use the current rider location API, not the device GPS endpoint.** The order status and live progress come from `GET /orders/:id/tracking` and the rider app's `POST/PUT /rider/location` updates.
 - Driver status flips via `GET /orders/:id` after the rider accepts; tracking (`GET /orders/:id/tracking`) only returns the rider object after accept and requires the rider app to poll `POST /rider/location`.
+- The temporary `POST /device-location` endpoint is not the tracking source for orders; it is only a legacy device GPS echo and must not be relied on for order tracking.
 - Admin-set product `image` + `description` flow into every product response — the app must render them.

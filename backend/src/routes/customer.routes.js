@@ -108,6 +108,8 @@ router.post('/location', customerAuth, locations.saveLocation);
 router.put('/location/:id', customerAuth, locations.updateLocation);
 router.get('/address/current', customerAuth, locations.getCurrentAddress);
 router.put('/address/current', customerAuth, locations.updateCurrentAddress);
+// Tracking/order flows must use the current rider location API and /orders/:id/tracking.
+// /device-location is kept only as a temporary legacy endpoint and is not used for live tracking.
 router.post('/device-location', customerAuth, locations.receiveDeviceLocation);
 
 // Notifications

@@ -89,12 +89,13 @@ export const updateCurrentAddress = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// ─── Device GPS (not stored, used for estimate only) ────────────────────────
+// ─── Device GPS (deprecated for tracking/order flows) ─────────────────────
 
 /**
  * POST /api/customer/device-location
- * Receives device GPS but does NOT store it.
- * Used only for real-time calculations (estimate delivery).
+ * Deprecated for order/tracking flows.
+ * The live tracking system must use the current rider location API and the order tracking endpoint,
+ * not the temporary device GPS endpoint.
  */
 export const receiveDeviceLocation = async (req, res, next) => {
   try {
@@ -102,13 +103,12 @@ export const receiveDeviceLocation = async (req, res, next) => {
     if (latitude == null || longitude == null)
       return res.status(400).json({ success: false, message: 'latitude and longitude required' });
 
-    // Just acknowledge - don't store
     res.json({
       success: true,
       data: {
         latitude,
         longitude,
-        message: 'Device location received (not stored)',
+        message: 'Device location received. This endpoint is not used for live order tracking; use the current rider location and /orders/:id/tracking API instead.',
       },
     });
   } catch (err) { next(err); }
