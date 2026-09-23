@@ -172,15 +172,67 @@ export const getOrders = async (req, res, next) => {
       [...params, parseInt(limit), offset]
     );
 
+    const groupedOrders = new Map();
+
     for (const order of orders) {
-      const { rows: items } = await query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
-      order.items = items;
-      order.orderName = order.order_name;
+      if (order.delivery_group_id) {
+        const key = order.delivery_group_id;
+        const current = groupedOrders.get(key);
+
+        if (!current) {
+          groupedOrders.set(key, {
+            ...order,
+            id: order.id,
+            orderName: order.order_name,
+            delivery_group_id: order.delivery_group_id,
+            is_grouped: true,
+            grouped_orders: [{
+              id: order.id,
+              order_name: order.order_name,
+              store_id: order.store_id,
+              total_price: Number(order.total_price || 0),
+              status: order.status,
+            }],
+            total_price: Number(order.total_price || 0),
+          });
+        } else {
+          current.total_price = Number(current.total_price || 0) + Number(order.total_price || 0);
+          current.grouped_orders.push({
+            id: order.id,
+            order_name: order.order_name,
+            store_id: order.store_id,
+            total_price: Number(order.total_price || 0),
+            status: order.status,
+          });
+        }
+      } else {
+        groupedOrders.set(`single:${order.id}`, { ...order, orderName: order.order_name, is_grouped: false });
+      }
+    }
+
+    const mergedOrders = [...groupedOrders.values()].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    for (const order of mergedOrders) {
+      if (order.is_grouped) {
+        const groupOrderIds = order.grouped_orders.map(item => item.id);
+        const { rows: items } = await query(
+          'SELECT oi.*, p.name AS product_name, p.image AS product_image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ANY($1)',
+          [groupOrderIds]
+        );
+        order.items = fixItemImages(items);
+        order.items_count = items.length;
+        order.orderName = order.order_name;
+      } else {
+        const { rows: items } = await query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+        order.items = items;
+        order.items_count = items.length;
+        order.orderName = order.order_name;
+      }
     }
 
     res.json({
       success: true,
-      data: orders,
+      data: mergedOrders,
       pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) },
     });
   } catch (err) { next(err); }

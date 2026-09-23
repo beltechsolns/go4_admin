@@ -389,25 +389,41 @@ export const acceptOrder = async (req, res, next) => {
   try {
     const riderId = await resolveRiderId(req.user.id);
     if (!riderId) return res.status(404).json({ success: false, message: 'Rider profile not found' });
-    // Try to atomically accept the whole delivery group (if the order belongs to one).
-    // This avoids a race where two riders read the order as pending and both attempt to accept.
-    const { rows: groupAccepted } = await query(
-      `WITH target AS (SELECT delivery_group_id FROM customer_orders WHERE id = $1)
-       UPDATE customer_orders SET status = 'accepted', rider_id = $2, updated_at = NOW()
-       WHERE delivery_group_id = (SELECT delivery_group_id FROM target) AND delivery_group_id IS NOT NULL AND status = 'pending'
-       RETURNING *`,
-      [req.params.id, riderId]
-    );
 
-    let acceptedOrders = groupAccepted;
+    const rawOrderId = String(req.params.id || '').trim();
+    const numericCandidate = Number.parseInt(rawOrderId, 10);
+    const isNumericId = rawOrderId !== '' && !Number.isNaN(numericCandidate) && String(numericCandidate) === rawOrderId;
 
-    if (!acceptedOrders.length) {
-      // Fallback: attempt to accept the single order atomically
-      const { rows: single } = await query(
-        "UPDATE customer_orders SET status = 'accepted', rider_id = $1, updated_at = NOW() WHERE id = $2 AND status = 'pending' RETURNING *",
-        [riderId, req.params.id]
+    let acceptedOrders = [];
+
+    if (isNumericId) {
+      // Try to atomically accept the whole delivery group (if the order belongs to one).
+      // This avoids a race where two riders read the order as pending and both attempt to accept.
+      const { rows: groupAccepted } = await query(
+        `WITH target AS (SELECT delivery_group_id FROM customer_orders WHERE id = $1)
+         UPDATE customer_orders SET status = 'accepted', rider_id = $2, updated_at = NOW()
+         WHERE delivery_group_id = (SELECT delivery_group_id FROM target) AND delivery_group_id IS NOT NULL AND status = 'pending'
+         RETURNING *`,
+        [numericCandidate, riderId]
       );
-      acceptedOrders = single;
+
+      acceptedOrders = groupAccepted;
+
+      if (!acceptedOrders.length) {
+        // Fallback: accept the single order atomically
+        const { rows: single } = await query(
+          "UPDATE customer_orders SET status = 'accepted', rider_id = $1, updated_at = NOW() WHERE id = $2 AND status = 'pending' RETURNING *",
+          [riderId, numericCandidate]
+        );
+        acceptedOrders = single;
+      }
+    } else {
+      // Grouped order IDs are stored as delivery_group_id strings, not integers.
+      const { rows: groupAccepted } = await query(
+        "UPDATE customer_orders SET status = 'accepted', rider_id = $1, updated_at = NOW() WHERE delivery_group_id = $2 AND status = 'pending' RETURNING *",
+        [riderId, rawOrderId]
+      );
+      acceptedOrders = groupAccepted;
     }
 
     if (!acceptedOrders.length) return res.status(400).json({ success: false, message: 'Order not available' });
@@ -466,7 +482,7 @@ export const acceptOrder = async (req, res, next) => {
         delivery_address: firstOrder.delivery_address,
         delivery_lat: firstOrder.delivery_lat,
         delivery_lng: firstOrder.delivery_lng,
-        is_grouped: !!order.delivery_group_id,
+        is_grouped: !!firstOrder.delivery_group_id,
       },
     });
   } catch (err) { next(err); }
