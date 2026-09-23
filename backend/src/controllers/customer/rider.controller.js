@@ -453,6 +453,7 @@ export const acceptOrder = async (req, res, next) => {
       notifyUser(firstOrder.user_id, {
         title: 'Rider Accepted',
         message: `${rider[0]?.full_name || 'A rider'} has accepted ${countText}.`,
+        pushBody: `Your order is accepted by ${rider[0]?.full_name || 'a rider'}.`,
         data: { type: 'order_status', order_id: firstOrder.id, status: 'accepted' },
       });
     }

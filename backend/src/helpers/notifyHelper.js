@@ -74,3 +74,31 @@ export async function notifyUser(userId, { title, message, pushBody, data = {} }
     data: { ...data, title, body: pushBody || message },
   });
 }
+
+export async function notifyUsers(userIds, payload) {
+  const ids = [...new Set((userIds || []).filter(Boolean))];
+  for (const userId of ids) {
+    try {
+      await notifyUser(userId, payload);
+    } catch (err) {
+      console.error('[Notification] notifyUsers failed for user', userId, err?.message || err);
+    }
+  }
+}
+
+export async function notifyRiders(payload) {
+  try {
+    const { rows } = await query(
+      `SELECT DISTINCT r.user_id
+       FROM riders r
+       INNER JOIN device_tokens dt ON dt.user_id = r.user_id`
+    );
+
+    const userIds = rows.map((row) => row.user_id).filter(Boolean);
+    if (!userIds.length) return;
+
+    await notifyUsers(userIds, payload);
+  } catch (err) {
+    console.error('[Notification] notifyRiders failed:', err?.message || err);
+  }
+}

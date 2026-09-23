@@ -3,7 +3,7 @@ import { haversineKm, computeEtaMinutes, hasArrived } from '../../helpers/geoHel
 import { getRouteDirections } from '../../helpers/directionHelper.js';
 import { fixItemImages } from '../../helpers/imageHelper.js';
 import { sendOrderConfirmationEmail, sendOrderStatusEmail } from '../../helpers/emailHelper.js';
-import { notifyUser } from '../../helpers/notifyHelper.js';
+import { notifyUser, notifyRiders } from '../../helpers/notifyHelper.js';
 
 export const createOrder = async (req, res, next) => {
   try {
@@ -123,6 +123,22 @@ export const createOrder = async (req, res, next) => {
       }
     } catch (e) {
       console.error('[OrderNotify] Admin notify failed:', e.message);
+    }
+
+    try {
+      const firstOrder = createdOrders[0];
+      await notifyRiders({
+        title: 'New Delivery Request',
+        message: `${user[0].name} placed a new order. Pickup: ${firstOrder.pickup_address || 'Restaurant'} • Delivery: ${firstOrder.delivery_address}`,
+        pushBody: `New delivery available: ${firstOrder.order_name || 'Order'}`,
+        data: {
+          type: 'new_delivery',
+          order_id: String(firstOrder.id),
+          status: 'pending',
+        },
+      });
+    } catch (e) {
+      console.error('[OrderNotify] Rider notify failed:', e.message);
     }
 
     res.status(201).json({ success: true, data: createdOrders.length === 1 ? createdOrders[0] : createdOrders });
